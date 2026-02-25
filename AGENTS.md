@@ -227,93 +227,135 @@ class FileSystemWatcher(BaseWatcher):
 
 ### 3. Orchestrator Integration
 
-The orchestrator component ties the watcher and Claude Code together:
+The orchestrator component ties the watcher and Claude Code together. **UPDATED**: Now includes proper file locking, multi-folder monitoring, and state persistence.
+
+See the complete implementation in `/src/orchestrator/orchestrator.py`.
+
+Key improvements:
+- **Global processing lock** prevents concurrent Claude runs
+- **Multi-folder monitoring**: Inbox, Needs_Action, Approved
+- **Priority-based processing**: Approved > Needs_Action > Inbox
+- **Persistent state** survives crashes
+- **Instruction file pattern** for Claude Code integration
+- **Comprehensive error handling and logging**
 
 ```python
+# Simplified example - see full implementation in src/orchestrator/orchestrator.py
 import subprocess
 import time
 from pathlib import Path
+import fcntl
 
 class Orchestrator:
     def __init__(self, vault_path: str):
         self.vault_path = Path(vault_path)
         self.needs_action = self.vault_path / 'Needs_Action'
+        self.approved = self.vault_path / 'Approved'
+        self.inbox = self.vault_path / 'Inbox'
+        self.processing_lock = self.vault_path / '.state' / 'processing.lock'
 
-    def check_and_trigger_claude(self):
-        """Check for new files in Needs_Action and trigger Claude if any exist"""
-        needs_action_files = list(self.needs_action.glob('*'))
-        if needs_action_files:
-            self.trigger_claude_processing()
-
-    def trigger_claude_processing(self):
-        """Trigger Claude Code to process the vault"""
+    def _acquire_processing_lock(self) -> bool:
+        """Acquire global lock to prevent concurrent processing"""
         try:
-            # Run Claude Code with a prompt to process the vault
-            result = subprocess.run([
-                'claude',
-                'Process any new items in the Needs_Action folder and update the dashboard accordingly.'
-            ], cwd=str(self.vault_path), capture_output=True, text=True, timeout=300)
+            self.lock_fd = open(self.processing_lock, 'w')
+            fcntl.flock(self.lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True
+        except (IOError, OSError):
+            return False
 
-            if result.returncode == 0:
-                print(f"Claude processing completed: {result.stdout}")
-            else:
-                print(f"Claude processing failed: {result.stderr}")
+    def _trigger_claude_processing(self, context: str) -> bool:
+        """Trigger Claude Code with instruction file"""
+        instruction_file = self.vault_path / '.claude_instruction.md'
+        instruction_file.write_text(f"# Task\n{context}\n\n[Full instructions...]")
 
-        except subprocess.TimeoutExpired:
-            print("Claude processing timed out")
-        except Exception as e:
-            print(f"Error triggering Claude: {e}")
+        result = subprocess.run([
+            'claude', '--cwd', str(self.vault_path),
+            f'Please read and execute the instructions in .claude_instruction.md'
+        ], capture_output=True, text=True, timeout=300)
 
-    def run_monitoring_loop(self):
-        """Main monitoring loop that checks for new files and triggers Claude"""
-        while True:
-            self.check_and_trigger_claude()
-            time.sleep(30)  # Check every 30 seconds
+        instruction_file.unlink()
+        return result.returncode == 0
+
+    def check_and_trigger(self):
+        """Check for files and trigger Claude if needed"""
+        if not self._acquire_processing_lock():
+            return  # Another instance is running
+
+        try:
+            # Get files from all monitored folders
+            approved_files = list(self.approved.glob('*.md'))
+            needs_action_files = list(self.needs_action.glob('*.md'))
+            inbox_files = list(self.inbox.glob('*.md'))
+
+            # Process in priority order
+            if approved_files:
+                self._trigger_claude_processing(f'Execute {len(approved_files)} approved actions')
+            if needs_action_files:
+                self._trigger_claude_processing(f'Process {len(needs_action_files)} items')
+            if inbox_files:
+                self._trigger_claude_processing(f'Process {len(inbox_files)} inbox items')
+        finally:
+            self._release_processing_lock()
 ```
 
 ### 4. Watchdog Process for Reliability
 
-For production use, a watchdog process ensures the watcher stays running:
+**UPDATED**: Production-ready watchdog with restart limiting, alerting, and graceful shutdown.
+
+See the complete implementation in `/src/orchestrator/watchdog.py`.
+
+Key features:
+- **Process monitoring** using PID files and psutil
+- **Auto-restart** with restart count limiting (max 5/hour)
+- **Human alerting** via ALERTS.md file
+- **Graceful shutdown** of all processes
+- **Comprehensive logging**
 
 ```python
+# Simplified example - see full implementation in src/orchestrator/watchdog.py
 import subprocess
-import time
+import psutil
 from pathlib import Path
 
-PROCESSES = {
-    'filesystem_watcher': 'python filesystem_watcher.py',
-    'orchestrator': 'python orchestrator.py'
-}
+class ProcessWatchdog:
+    def __init__(self, vault_path: str):
+        self.vault_path = Path(vault_path)
+        self.pid_dir = Path('/tmp/ai_employee_pids')
+        self.restart_counts = {}
+        self.max_restarts = 5  # Per hour
 
-def is_process_running(pid_file: Path):
-    """Check if a process is running based on PID file"""
-    if not pid_file.exists():
-        return False
+    def _is_process_running(self, process_name: str) -> bool:
+        """Check if process is running via PID file"""
+        pid_file = self.pid_dir / f'{process_name}.pid'
+        if not pid_file.exists():
+            return False
 
-    try:
-        with open(pid_file, 'r') as f:
-            pid = int(f.read().strip())
-        # Check if process exists (this is OS-specific)
-        import psutil
-        return psutil.pid_exists(pid)
-    except:
-        return False
+        try:
+            pid = int(pid_file.read_text().strip())
+            return psutil.pid_exists(pid)
+        except:
+            return False
 
-def check_and_restart():
-    """Monitor and restart critical processes"""
-    for name, cmd in PROCESSES.items():
-        pid_file = Path(f'/tmp/{name}.pid')
-        if not is_process_running(pid_file):
-            print(f'{name} not running, restarting...')
-            proc = subprocess.Popen(cmd.split())
-            pid_file.write_text(str(proc.pid))
-            notify_human(f'{name} was restarted')
+    def _start_process(self, process_name: str) -> int:
+        """Start a process and save its PID"""
+        proc = subprocess.Popen(
+            self.processes[process_name]['command'],
+            start_new_session=True  # Detach from parent
+        )
+        pid_file = self.pid_dir / f'{process_name}.pid'
+        pid_file.write_text(str(proc.pid))
+        return proc.pid
 
-def run_watchdog():
-    """Run the watchdog process"""
-    while True:
-        check_and_restart()
-        time.sleep(60)  # Check every minute
+    def check_and_restart(self):
+        """Check all processes and restart if needed"""
+        for name in self.processes:
+            if not self._is_process_running(name):
+                if self.restart_counts[name] < self.max_restarts:
+                    self._start_process(name)
+                    self.restart_counts[name] += 1
+                    self._notify_human(f'{name} restarted')
+                else:
+                    self._notify_human(f'{name} failed {self.max_restarts} times')
 ```
 
 ### 5. Process Management
@@ -376,6 +418,84 @@ pm2 startup
 The Bronze Tier implementation will be successful when:
 - Claude Code can read from and write to the Obsidian vault
 - At least one watcher is monitoring and creating action files
-- Basic file movement workflow (Inbox → Needs_Action → Done) functions
+- Basic file movement workflow (Inbox → Needs_Action → Done) functions correctly
 - All functionality is implemented as modular Agent Skills
 - Dashboard.md updates reflect system activity
+- **Multiple files can be processed concurrently without corruption**
+- **System recovers automatically from process crashes**
+- **No duplicate processing occurs after restart**
+- **File locking prevents race conditions**
+- **Comprehensive logging enables debugging**
+- **Human-in-the-loop approval workflow is complete (Pending_Approval → Approved → Done)**
+
+## Implementation Status
+
+### ✅ Completed Components
+
+1. **Vault Structure** - All required folders created with proper permissions
+2. **Base Watcher** - Abstract class with state persistence, file locking, and sanitization
+3. **File System Watcher** - Production-ready with watchdog library integration
+4. **Orchestrator** - Multi-folder monitoring with global locking and priority processing
+5. **Watchdog** - Process monitoring with auto-restart and alerting
+6. **Setup Scripts** - Automated setup, start, and stop scripts
+7. **Documentation** - Complete architecture documentation and testing scenarios
+
+### 🔄 Next Steps
+
+1. **Test the complete workflow** with real files
+2. **Verify Claude Code integration** - May need adjustment based on actual CLI behavior
+3. **Create Agent Skills** for common tasks (email drafting, file categorization, etc.)
+4. **Add Business_Goals.md** template for weekly audits
+5. **Implement basic MCP server** for email sending (Silver tier preparation)
+
+## Quick Start
+
+```bash
+# 1. Setup
+./setup.sh
+
+# 2. Install dependencies
+pip3 install -r requirements.txt
+
+# 3. Start the system
+./start.sh
+
+# 4. Test by dropping a file
+echo "Test task" > ai_employee_vault/Inbox/test_task.md
+
+# 5. Monitor logs
+tail -f ai_employee_vault/Logs/*.log
+
+# 6. Stop the system
+./stop.sh
+```
+
+## Troubleshooting
+
+### Issue: Claude Code not found
+**Solution**: Ensure Claude Code CLI is installed and in PATH
+```bash
+which claude
+# If not found, install Claude Code
+```
+
+### Issue: Processes not starting
+**Solution**: Check logs and permissions
+```bash
+cat ai_employee_vault/Logs/watchdog_*.log
+ls -la /tmp/ai_employee_pids/
+```
+
+### Issue: Files not being processed
+**Solution**: Check orchestrator logs and processing lock
+```bash
+cat ai_employee_vault/Logs/orchestrator_*.log
+ls -la ai_employee_vault/.state/processing.lock
+```
+
+### Issue: Duplicate processing
+**Solution**: Check state files
+```bash
+cat ai_employee_vault/.state/filesystem_watcher_state.json
+cat ai_employee_vault/.state/orchestrator_state.json
+```
