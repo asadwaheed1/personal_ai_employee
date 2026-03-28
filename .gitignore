@@ -1,0 +1,14 @@
+# Ignore the Obsidian vault outputs and environment
+ai_employee_vault/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.env
+.idea/
+.vscode/
+.DS_Store
+*.log
