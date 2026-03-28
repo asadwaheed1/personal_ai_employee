@@ -169,10 +169,9 @@ All files have been processed and moved to appropriate folders.
             instruction_file.write_text(instruction_content)
 
             # Run Claude Code with the instruction
-            # Note: This assumes Claude Code can be invoked this way
-            # You may need to adjust based on actual Claude Code CLI behavior
+            # Using --dangerously-skip-permissions to allow file operations in automated mode
             result = subprocess.run(
-                ['claude', '--cwd', str(self.vault_path), f'Please read and execute the instructions in .claude_instruction.md'],
+                ['claude', '--dangerously-skip-permissions', 'Please read and execute the instructions in .claude_instruction.md'],
                 cwd=str(self.vault_path),
                 capture_output=True,
                 text=True,

@@ -21,9 +21,16 @@ if [ ! -d "$VAULT_PATH" ]; then
     exit 1
 fi
 
+# Check if virtual environment exists
+if [ ! -d "$PROJECT_ROOT/venv" ]; then
+    echo "Error: Virtual environment not found"
+    echo "Please run ./setup.sh first"
+    exit 1
+fi
+
 # Start the watchdog (which will start all other processes)
 echo "Starting watchdog process..."
-python3 "$PROJECT_ROOT/src/orchestrator/watchdog.py" "$VAULT_PATH" 60 &
+"$PROJECT_ROOT/venv/bin/python" "$PROJECT_ROOT/src/orchestrator/watchdog.py" "$VAULT_PATH" 60 &
 WATCHDOG_PID=$!
 
 echo "✓ Watchdog started (PID: $WATCHDOG_PID)"
@@ -40,8 +47,18 @@ echo ""
 echo "To stop the system, run: ./stop.sh"
 echo "Or press Ctrl+C"
 echo ""
+echo "=== Live Activity Log ==="
+echo ""
+
+# Wait for orchestrator log file to be created
+sleep 2
+
+# Tail the orchestrator log to show real-time activity
+LOG_FILE="$VAULT_PATH/Logs/orchestrator_$(date +%Y-%m-%d).log"
+tail -f "$LOG_FILE" 2>/dev/null &
+TAIL_PID=$!
 
 # Wait for interrupt
-trap "echo ''; echo 'Stopping...'; kill $WATCHDOG_PID 2>/dev/null; exit 0" INT TERM
+trap "echo ''; echo 'Stopping...'; kill $TAIL_PID 2>/dev/null; kill $WATCHDOG_PID 2>/dev/null; exit 0" INT TERM
 
 wait $WATCHDOG_PID
