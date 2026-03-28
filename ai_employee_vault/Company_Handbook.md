@@ -1,7 +1,7 @@
 # Company Handbook - AI Employee Rules of Engagement
 
 ## Last Updated
-2026-02-25
+$(date +%Y-%m-%d)
 
 ## Core Principles
 

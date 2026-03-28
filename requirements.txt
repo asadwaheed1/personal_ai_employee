@@ -3,6 +3,7 @@
 # Core dependencies
 watchdog>=3.0.0
 psutil>=5.9.0
+pyyaml>=6.0
 
 # Optional dependencies for Silver/Gold tier (commented out for Bronze)
 # google-auth>=2.0.0

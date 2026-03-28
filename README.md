@@ -22,6 +22,7 @@ The Personal AI Employee is a three-tier automation system designed to handle pe
 
 - ✅ **Automated Task Processing** - Drop markdown files, get results automatically
 - ✅ **Claude Code Integration** - Intelligent task execution with AI reasoning
+- ✅ **Agent Skills Framework** - All AI functionality implemented as modular Agent Skills
 - ✅ **Obsidian Vault** - Visual task management and monitoring
 - ✅ **Real-time Dashboard** - Live system status and activity tracking
 - ✅ **Activity Logging** - Comprehensive logs of all operations
@@ -102,15 +103,25 @@ personal_ai_employee/
 ├── start.sh                    # Start the system
 ├── stop.sh                     # Stop the system
 ├── requirements.txt            # Python dependencies
-├── BRONZE_TIER_DOCS.md        # Complete documentation
-├── QUICK_REFERENCE.md         # Quick reference guide
 ├── START_HERE.md              # Getting started guide
+│
+├── .claude/
+│   └── tools/
+│       └── bronze_tier_skills.json  # Agent Skills manifest
 │
 ├── src/
 │   └── orchestrator/
 │       ├── watchdog.py         # Process monitor
 │       ├── orchestrator.py     # Main orchestrator
-│       └── filesystem_watcher.py
+│       └── skills/             # Agent Skills
+│           ├── base_skill.py   # Base class
+│           ├── process_needs_action.py
+│           ├── update_dashboard.py
+│           ├── create_plan.py
+│           ├── create_approval_request.py
+│           ├── parse_watcher_file.py
+│           ├── process_inbox.py
+│           └── process_approved_actions.py
 │
 └── ai_employee_vault/          # Obsidian vault
     ├── Inbox/                  # Drop tasks here
@@ -132,10 +143,13 @@ personal_ai_employee/
 
 | Document | Description |
 |----------|-------------|
-| **[BRONZE_TIER_DOCS.md](BRONZE_TIER_DOCS.md)** | Complete technical documentation |
-| **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** | Quick reference guide |
 | **[START_HERE.md](START_HERE.md)** | Getting started guide |
+| **[BRONZE_TIER_DOCS.md](BRONZE_TIER_DOCS.md)** | Complete technical documentation |
+| **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** | System quick reference |
+| **[AGENT_SKILLS_QUICK_REFERENCE.md](AGENT_SKILLS_QUICK_REFERENCE.md)** | Agent Skills guide |
+| **[AGENT_SKILLS_DOCUMENTATION.md](AGENT_SKILLS_DOCUMENTATION.md)** | Skills technical docs |
 | **[CLAUDE.md](CLAUDE.md)** | Claude Code configuration |
+| **[TESTING.md](TESTING.md)** | Test scenarios |
 
 ---
 

@@ -16,8 +16,9 @@
 6. [File Structure](#file-structure)
 7. [Workflow](#workflow)
 8. [Obsidian Integration](#obsidian-integration)
-9. [Troubleshooting](#troubleshooting)
-10. [API Reference](#api-reference)
+9. [Agent Skills](#agent-skills)
+10. [Troubleshooting](#troubleshooting)
+11. [API Reference](#api-reference)
 
 ---
 
@@ -146,8 +147,9 @@ The Bronze Tier is the foundational implementation of the Personal AI Employee s
 
    The setup script will:
    - Create Python virtual environment
-   - Install dependencies (watchdog, psutil)
+   - Install dependencies (watchdog, psutil, pyyaml)
    - Create vault directory structure
+   - Setup Agent Skills structure
    - Generate Dashboard.md and Company_Handbook.md
    - Configure Obsidian settings
    - Create README.md with usage instructions
@@ -918,6 +920,62 @@ Include:
 
 ---
 
+## Agent Skills
+
+### Overview
+
+All AI functionality in Bronze Tier is implemented as **Agent Skills**, meeting the hackathon requirement that "All AI functionality should be implemented as Agent Skills".
+
+### Skills Architecture
+
+```
+.claude/tools/
+└── bronze_tier_skills.json    # Skills manifest
+
+src/orchestrator/skills/
+├── base_skill.py              # Base class for all skills
+├── process_needs_action.py    # Process Needs_Action files
+├── update_dashboard.py        # Update Dashboard.md
+├── create_plan.py             # Generate action plans
+├── create_approval_request.py # Create approval requests
+├── parse_watcher_file.py      # Parse watcher files
+├── process_inbox.py           # Process Inbox files
+└── process_approved_actions.py # Execute approved actions
+```
+
+### Available Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `process_needs_action` | Process files in Needs_Action directory |
+| `update_dashboard` | Update Dashboard.md with current status |
+| `create_plan` | Generate structured action plans |
+| `create_approval_request` | Create approval requests for sensitive actions |
+| `parse_watcher_file` | Extract information from watcher files |
+| `process_inbox` | Process files dropped in Inbox folder |
+| `process_approved_actions` | Execute approved actions |
+
+### Using Skills
+
+```bash
+# Example: Update dashboard
+python src/orchestrator/skills/update_dashboard.py '{
+  "vault_path": "/path/to/vault",
+  "status": "operational"
+}'
+
+# Example: Process Inbox
+python src/orchestrator/skills/process_inbox.py '{
+  "vault_path": "/path/to/vault"
+}'
+```
+
+For detailed skills documentation, see:
+- [AGENT_SKILLS_DOCUMENTATION.md](AGENT_SKILLS_DOCUMENTATION.md)
+- [AGENT_SKILLS_QUICK_REFERENCE.md](AGENT_SKILLS_QUICK_REFERENCE.md)
+
+---
+
 ## Changelog
 
 ### Version 1.0 (2026-03-28)
@@ -928,6 +986,8 @@ Include:
 - Dashboard and logging
 - Human-in-the-loop approval workflow
 - Complete setup automation
+- **Agent Skills framework** (7 modular skills)
+- **Complete Bronze Tier requirements compliance**
 
 ---
 

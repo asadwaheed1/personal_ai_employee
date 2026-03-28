@@ -23,7 +23,9 @@ A **complete, production-ready Bronze Tier AI Employee** that:
 → Read **[TESTING.md](TESTING.md)** (12 test scenarios)
 
 ### 🔍 Want to See What Was Built?
-→ Read **[COMPLETION_SUMMARY.md](COMPLETION_SUMMARY.md)**
+→ Read **[BRONZE_TIER_COMPLETION.md](BRONZE_TIER_COMPLETION.md)**
+### 🛠️ Want to Use Agent Skills?
+  Read **[AGENT_SKILLS_QUICK_REFERENCE.md](AGENT_SKILLS_QUICK_REFERENCE.md)**
 
 ### ✅ Want to Verify Before Testing?
 → Read **[VERIFICATION_CHECKLIST.md](VERIFICATION_CHECKLIST.md)**
@@ -64,7 +66,9 @@ tail -f ai_employee_vault/Logs/*.log
 personal_ai_employee/
 ├── START_HERE.md              ← You are here
 ├── QUICKSTART.md              ← 30-minute guide
-├── COMPLETION_SUMMARY.md      ← What was built
+├── BRONZE_TIER_COMPLETION.md      ← What was built
+### 🛠️ Want to Use Agent Skills?
+  Read **[AGENT_SKILLS_QUICK_REFERENCE.md](AGENT_SKILLS_QUICK_REFERENCE.md)**
 │
 ├── ai_employee_vault/         ← The vault (Obsidian)
 │   ├── Inbox/                 ← Drop files here
@@ -137,7 +141,9 @@ All 10 critical issues from the design review were addressed:
 | **BRONZE_TIER_IMPLEMENTATION.md** | Complete architecture | 45 min |
 | **TESTING.md** | Test scenarios | 2 hours |
 | **PROJECT_STRUCTURE.md** | File organization | 20 min |
-| **COMPLETION_SUMMARY.md** | What was built | 10 min |
+| **BRONZE_TIER_COMPLETION.md** | What was built | 10 min |
+### 🛠️ Want to Use Agent Skills?
+  Read **[AGENT_SKILLS_QUICK_REFERENCE.md](AGENT_SKILLS_QUICK_REFERENCE.md)**
 | **VERIFICATION_CHECKLIST.md** | Pre-testing checks | 15 min |
 | **IMPLEMENTATION_SUMMARY.md** | Technical summary | 15 min |
 

@@ -1,0 +1,211 @@
+{
+  "version": "1.0",
+  "skills": [
+    {
+      "name": "process_needs_action",
+      "description": "Process all files in the Needs_Action directory and update dashboard",
+      "category": "file_processing",
+      "implementation": {
+        "type": "python_script",
+        "path": "src/orchestrator/skills/process_needs_action.py"
+      },
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "vault_path": {
+            "type": "string",
+            "description": "Path to the AI employee vault directory"
+          },
+          "files": {
+            "type": "array",
+            "description": "List of file paths to process",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["vault_path"]
+      }
+    },
+    {
+      "name": "update_dashboard",
+      "description": "Update the Dashboard.md file with current status and activity",
+      "category": "reporting",
+      "implementation": {
+        "type": "python_script",
+        "path": "src/orchestrator/skills/update_dashboard.py"
+      },
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "vault_path": {
+            "type": "string",
+            "description": "Path to the AI employee vault directory"
+          },
+          "activity_log": {
+            "type": "string",
+            "description": "Recent activity to add to dashboard"
+          },
+          "summary": {
+            "type": "string",
+            "description": "Summary of current state"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["operational", "processing", "error", "idle"],
+            "description": "Current system status"
+          }
+        },
+        "required": ["vault_path"]
+      }
+    },
+    {
+      "name": "create_plan",
+      "description": "Generate structured action plans for processing tasks",
+      "category": "planning",
+      "implementation": {
+        "type": "python_script",
+        "path": "src/orchestrator/skills/create_plan.py"
+      },
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "vault_path": {
+            "type": "string",
+            "description": "Path to the AI employee vault directory"
+          },
+          "task_description": {
+            "type": "string",
+            "description": "Description of the task to plan"
+          },
+          "files_to_process": {
+            "type": "array",
+            "description": "List of files related to this task",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "urgent"],
+            "description": "Priority level of the task"
+          }
+        },
+        "required": ["vault_path", "task_description"]
+      }
+    },
+    {
+      "name": "create_approval_request",
+      "description": "Generate approval request files for sensitive actions",
+      "category": "approval",
+      "implementation": {
+        "type": "python_script",
+        "path": "src/orchestrator/skills/create_approval_request.py"
+      },
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "vault_path": {
+            "type": "string",
+            "description": "Path to the AI employee vault directory"
+          },
+          "action_type": {
+            "type": "string",
+            "enum": ["payment", "email", "file_delete", "system_change"],
+            "description": "Type of action requiring approval"
+          },
+          "action_details": {
+            "type": "object",
+            "description": "Details of the action requiring approval"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason why this action requires approval"
+          },
+          "expires_in_hours": {
+            "type": "integer",
+            "default": 24,
+            "description": "Hours until approval request expires"
+          }
+        },
+        "required": ["vault_path", "action_type", "action_details", "reason"]
+      }
+    },
+    {
+      "name": "parse_watcher_file",
+      "description": "Extract information from watcher-generated files",
+      "category": "parsing",
+      "implementation": {
+        "type": "python_script",
+        "path": "src/orchestrator/skills/parse_watcher_file.py"
+      },
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Path to the watcher file to parse"
+          },
+          "file_type": {
+            "type": "string",
+            "enum": ["email", "file_drop", "system_event", "manual"],
+            "description": "Type of watcher file"
+          }
+        },
+        "required": ["file_path"]
+      }
+    },
+    {
+      "name": "process_inbox",
+      "description": "Process files dropped in the Inbox folder",
+      "category": "file_processing",
+      "implementation": {
+        "type": "python_script",
+        "path": "src/orchestrator/skills/process_inbox.py"
+      },
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "vault_path": {
+            "type": "string",
+            "description": "Path to the AI employee vault directory"
+          },
+          "files": {
+            "type": "array",
+            "description": "List of file paths to process",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["vault_path"]
+      }
+    },
+    {
+      "name": "process_approved_actions",
+      "description": "Execute approved actions from the Approved folder",
+      "category": "execution",
+      "implementation": {
+        "type": "python_script",
+        "path": "src/orchestrator/skills/process_approved_actions.py"
+      },
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "vault_path": {
+            "type": "string",
+            "description": "Path to the AI employee vault directory"
+          },
+          "files": {
+            "type": "array",
+            "description": "List of approved action files to execute",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["vault_path"]
+      }
+    }
+  ]
+}

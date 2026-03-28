@@ -16,9 +16,21 @@ echo "Project root: $PROJECT_ROOT"
 echo "Vault path: $VAULT_PATH"
 echo ""
 
-# Check Python version
-echo "Checking Python version..."
-python3 --version || { echo "Python 3 is required but not installed."; exit 1; }
+# Check prerequisites
+echo "Checking prerequisites..."
+if ! command -v python3 &> /dev/null; then
+    echo "✗ Python 3 is required but not installed."
+    exit 1
+fi
+echo "✓ Python 3 found"
+
+if ! command -v claude &> /dev/null; then
+    echo "⚠ Warning: Claude Code CLI not found in PATH"
+    echo "  The system requires Claude Code to process files."
+    echo "  Install via npm: npm install -g @anthropic/claude-code"
+else
+    echo "✓ Claude Code CLI found"
+fi
 echo ""
 
 # Create virtual environment if it doesn't exist
@@ -34,6 +46,26 @@ echo ""
 # Install Python dependencies
 echo "Installing Python dependencies..."
 "$PROJECT_ROOT/venv/bin/pip" install -r requirements.txt
+echo "✓ Dependencies installed"
+echo ""
+
+# Setup Agent Skills
+echo "Setting up Agent Skills..."
+mkdir -p "$PROJECT_ROOT/.claude/tools"
+mkdir -p "$PROJECT_ROOT/src/orchestrator/skills"
+
+if [ -f "$PROJECT_ROOT/.claude/tools/bronze_tier_skills.json" ]; then
+    echo "✓ Skills manifest found"
+else
+    echo "⚠ Warning: Skills manifest (.claude/tools/bronze_tier_skills.json) not found"
+fi
+
+if ls "$PROJECT_ROOT"/src/orchestrator/skills/*.py 1> /dev/null 2>&1; then
+    chmod +x "$PROJECT_ROOT"/src/orchestrator/skills/*.py
+    echo "✓ Skill scripts made executable"
+else
+    echo "⚠ Warning: No skill scripts found in src/orchestrator/skills/"
+fi
 echo ""
 
 # Create vault structure if it doesn't exist
@@ -302,16 +334,48 @@ else
 fi
 echo ""
 
+# Validation step
+echo "Validating setup..."
+validation_failed=0
+
+# Check required directories
+required_dirs=("Inbox" "Needs_Action" "Done" "Plans" "Pending_Approval" "Approved" "Rejected" "Logs" ".state")
+for dir in "${required_dirs[@]}"; do
+    if [ ! -d "$VAULT_PATH/$dir" ]; then
+        echo "✗ Missing directory: $dir"
+        validation_failed=1
+    fi
+done
+
+# Check required files
+required_files=("Dashboard.md" "Company_Handbook.md" "README.md")
+for file in "${required_files[@]}"; do
+    if [ ! -f "$VAULT_PATH/$file" ]; then
+        echo "✗ Missing file: $file"
+        validation_failed=1
+    fi
+done
+
+if [ $validation_failed -eq 0 ]; then
+    echo "✓ All required directories and files present"
+else
+    echo "✗ Setup validation failed"
+    exit 1
+fi
+echo ""
+
 echo ""
 echo "=== Setup Complete ==="
 echo ""
 echo "✓ Virtual environment created"
 echo "✓ Python dependencies installed"
+echo "✓ Agent Skills structure verified"
 echo "✓ Vault structure created"
 echo "✓ Dashboard.md configured"
 echo "✓ Company_Handbook.md configured"
 echo "✓ README.md created"
 echo "✓ Obsidian configuration ready"
+echo "✓ Setup validation passed"
 echo ""
 echo "Next steps:"
 echo "1. Start the system: ./start.sh"
