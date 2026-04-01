@@ -33,6 +33,7 @@ if crontab -l &> /dev/null; then
 fi
 
 # Build new crontab entries
+PYTHON_PATH=$(which python3)
 CRON_ENTRIES="# AI Employee - Automated Tasks
 # Generated: $(date)
 # Project: $PROJECT_DIR
@@ -41,33 +42,26 @@ CRON_ENTRIES="# AI Employee - Automated Tasks
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin:$HOME/.local/bin
 VAULT_PATH=$VAULT_PATH
-PYTHON_PATH=$(which python3)
 
 # Daily content calendar check (run every hour)
 # This checks if any posts are due and creates approval requests
-0 * * * * cd "$PROJECT_DIR" && $PYTHON_PATH -m src.orchestrator.skills.create_content_plan '{"action": "check_calendar"}' >> "$VAULT_PATH/Logs/calendar_cron.log" 2>&1
+0 * * * * cd \"$PROJECT_DIR\" && $PYTHON_PATH -m src.orchestrator.skills.create_content_plan '{\"action\": \"check_calendar\"}' >> \"$VAULT_PATH/Logs/calendar_cron.log\" 2>&1
 
 # Daily LinkedIn post at 9:00 AM (only on weekdays)
 # Posts business content to generate sales
-0 9 * * 1-5 cd "$PROJECT_DIR" && $PYTHON_PATH -m src.orchestrator.skills.post_linkedin '{"action": "check_calendar"}' >> "$VAULT_PATH/Logs/linkedin_cron.log" 2>&1
+0 9 * * 1-5 cd \"$PROJECT_DIR\" && $PYTHON_PATH -m src.orchestrator.skills.post_linkedin '{\"action\": \"check_calendar\"}' >> \"$VAULT_PATH/Logs/linkedin_cron.log\" 2>&1
 
 # Weekly content planning (Sundays at 6:00 PM)
 # Generates content calendar for the upcoming week
-0 18 * * 0 cd "$PROJECT_DIR" && $PYTHON_PATH -m src.orchestrator.skills.create_content_plan '{"num_posts": 5}' >> "$VAULT_PATH/Logs/content_plan_cron.log" 2>&1
+0 18 * * 0 cd \"$PROJECT_DIR\" && $PYTHON_PATH -m src.orchestrator.skills.create_content_plan '{\"num_posts\": 5}' >> \"$VAULT_PATH/Logs/content_plan_cron.log\" 2>&1
 
 # Process approved actions every 15 minutes
 # Checks /Approved/ folder and executes actions
-*/15 * * * * cd "$PROJECT_DIR" && $PYTHON_PATH -m src.orchestrator.skills.process_approved_actions '{"vault_path": "'$VAULT_PATH'"}' >> "$VAULT_PATH/Logs/approved_actions_cron.log" 2>&1
+*/15 * * * * cd \"$PROJECT_DIR\" && $PYTHON_PATH -m src.orchestrator.skills.process_approved_actions '{\"vault_path\": \"$VAULT_PATH\"}' >> \"$VAULT_PATH/Logs/approved_actions_cron.log\" 2>&1
 
 # Daily dashboard update at 8:00 AM
 # Updates dashboard with current status
-0 8 * * * cd "$PROJECT_DIR" && $PYTHON_PATH -c "
-import sys
-sys.path.insert(0, '$PROJECT_DIR/src/orchestrator/skills')
-from update_dashboard import UpdateDashboardSkill
-skill = UpdateDashboardSkill('$VAULT_PATH')
-skill.execute({'summary': 'Morning dashboard update'})
-" >> "$VAULT_PATH/Logs/dashboard_cron.log" 2>&1
+0 8 * * * $PYTHON_PATH \"$PROJECT_DIR/scripts/dashboard_update.py\" >> \"$VAULT_PATH/Logs/dashboard_cron.log\" 2>&1
 
 # End of AI Employee cron jobs
 "

@@ -271,6 +271,9 @@ requires_approval: {str(is_sensitive).lower()}
 - [ ] Mark as read in Gmail
 - [ ] Archive after processing
 
+## Human Notes
+[Add your notes here. If replying, write your reply message and check "Draft a reply" above]
+
 ## Processing Notes
 {'**Note**: This email has been flagged as potentially sensitive and may require approval before any action is taken.' if is_sensitive else ''}
 

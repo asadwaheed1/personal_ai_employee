@@ -195,6 +195,18 @@ class ProcessApprovedActionsSkill(BaseSkill):
 
         # Add execution summary
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+        # Convert result to JSON-serializable format
+        def json_serializable(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            raise TypeError(f"Type {type(obj)} not serializable")
+
+        try:
+            result_json = json.dumps(result, indent=2, default=json_serializable)
+        except Exception as e:
+            result_json = json.dumps({"error": f"Could not serialize result: {str(e)}"})
+
         summary = f"""
 
 ---
@@ -205,7 +217,7 @@ class ProcessApprovedActionsSkill(BaseSkill):
 
 ### Execution Details
 ```json
-{json.dumps(result, indent=2)}
+{result_json}
 ```
 """
 

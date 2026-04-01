@@ -51,10 +51,10 @@ class LinkedInWatcher(BaseWatcher):
             items = []
 
             with sync_playwright() as p:
-                # Launch browser
+                # Launch browser (non-headless for first login)
                 browser = p.chromium.launch_persistent_context(
                     str(self.session_path),
-                    headless=True,
+                    headless=False,  # Changed to False to allow manual CAPTCHA solving
                     args=['--disable-blink-features=AutomationControlled']
                 )
 
@@ -71,8 +71,31 @@ class LinkedInWatcher(BaseWatcher):
                         browser.close()
                         return []
 
-                # Wait for messaging interface
-                page.wait_for_selector('[data-testid="conversations-list"]', timeout=10000)
+                # Wait for messaging interface with multiple possible selectors
+                try:
+                    # Try multiple selectors as LinkedIn's structure changes
+                    selectors = [
+                        '[data-testid="conversations-list"]',
+                        '.msg-conversations-container',
+                        '.msg-conversation-listitem',
+                        '[role="main"]'
+                    ]
+
+                    page_loaded = False
+                    for selector in selectors:
+                        try:
+                            page.wait_for_selector(selector, timeout=5000)
+                            self.logger.info(f'Found messaging interface with selector: {selector}')
+                            page_loaded = True
+                            break
+                        except:
+                            continue
+
+                    if not page_loaded:
+                        self.logger.warning('Could not find messaging interface, trying to continue anyway')
+
+                except Exception as e:
+                    self.logger.warning(f'Error waiting for messaging interface: {e}')
 
                 # Find conversations with unread messages
                 conversations = self._get_unread_conversations(page)
@@ -108,7 +131,7 @@ class LinkedInWatcher(BaseWatcher):
     def _login(self, page) -> bool:
         """Login to LinkedIn"""
         try:
-            page.goto('https://www.linkedin.com/login')
+            page.goto('https://www.linkedin.com/login', timeout=60000)
 
             # Fill credentials
             page.fill('#username', self.username)
@@ -117,8 +140,9 @@ class LinkedInWatcher(BaseWatcher):
             # Click login button
             page.click('button[type="submit"]')
 
-            # Wait for navigation
-            page.wait_for_load_state('networkidle')
+            # Wait for navigation with longer timeout
+            self.logger.info('Waiting for login to complete (may require CAPTCHA/verification)...')
+            page.wait_for_load_state('networkidle', timeout=120000)
 
             # Check if login successful
             if '/feed' in page.url or '/messaging' in page.url:
@@ -127,8 +151,18 @@ class LinkedInWatcher(BaseWatcher):
 
             # Check for security challenge
             if 'checkpoint' in page.url or 'captcha' in page.content().lower():
-                self.logger.error('LinkedIn security challenge detected. Manual login required.')
-                return False
+                self.logger.warning('LinkedIn security challenge detected. Please complete it manually in the browser.')
+                self.logger.info('Waiting 2 minutes for manual verification...')
+                # Wait for user to complete challenge
+                page.wait_for_timeout(120000)
+
+                # Check again
+                if '/feed' in page.url or '/messaging' in page.url:
+                    self.logger.info('LinkedIn login successful after manual verification')
+                    return True
+                else:
+                    self.logger.error('Login still not successful after waiting')
+                    return False
 
             return False
 
@@ -141,28 +175,48 @@ class LinkedInWatcher(BaseWatcher):
         conversations = []
 
         try:
-            # Wait for conversation list
-            page.wait_for_selector('.msg-conversation-listitem', timeout=5000)
+            # Wait for conversation list with multiple selectors
+            selectors = ['.msg-conversation-listitem', '.msg-conversation-card', '[data-control-name="view_conversation"]']
 
-            # Get all conversation items
-            items = page.query_selector_all('.msg-conversation-listitem')
+            items = []
+            for selector in selectors:
+                try:
+                    page.wait_for_selector(selector, timeout=3000)
+                    items = page.query_selector_all(selector)
+                    if items:
+                        self.logger.info(f'Found {len(items)} conversation items with selector: {selector}')
+                        break
+                except:
+                    continue
+
+            if not items:
+                self.logger.warning('No conversation items found')
+                return []
 
             for item in items:
                 try:
-                    # Check for unread indicator
-                    unread = item.query_selector('.msg-conversation-listitem__unread-count')
+                    # Check for unread indicator (multiple possible selectors)
+                    unread = (item.query_selector('.msg-conversation-listitem__unread-count') or
+                             item.query_selector('.msg-conversation-card__unread-count') or
+                             item.query_selector('[data-test-unread-count]'))
 
                     if unread:
                         # Extract sender name
-                        sender_elem = item.query_selector('.msg-conversation-listitem__participant-names')
+                        sender_elem = (item.query_selector('.msg-conversation-listitem__participant-names') or
+                                      item.query_selector('.msg-conversation-card__participant-names') or
+                                      item.query_selector('h3'))
                         sender = sender_elem.inner_text() if sender_elem else 'Unknown'
 
                         # Extract message preview
-                        preview_elem = item.query_selector('.msg-conversation-listitem__message-snippet')
+                        preview_elem = (item.query_selector('.msg-conversation-listitem__message-snippet') or
+                                       item.query_selector('.msg-conversation-card__message-snippet') or
+                                       item.query_selector('p'))
                         preview = preview_elem.inner_text() if preview_elem else ''
 
                         # Extract timestamp
-                        time_elem = item.query_selector('.msg-conversation-listitem__time')
+                        time_elem = (item.query_selector('.msg-conversation-listitem__time') or
+                                    item.query_selector('.msg-conversation-card__time') or
+                                    item.query_selector('time'))
                         timestamp = time_elem.inner_text() if time_elem else ''
 
                         conversations.append({
@@ -173,6 +227,8 @@ class LinkedInWatcher(BaseWatcher):
                 except Exception as e:
                     self.logger.warning(f'Error parsing conversation: {e}')
                     continue
+
+            self.logger.info(f'Found {len(conversations)} unread conversations')
 
         except Exception as e:
             self.logger.warning(f'Error getting conversations: {e}')
