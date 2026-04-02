@@ -3,6 +3,8 @@ Orchestrator - Coordinates watchers and Claude Code processing
 
 This orchestrator monitors the vault for new files and triggers Claude Code
 to process them. It handles multiple folders and implements proper file locking.
+
+Silver Tier Enhancement: Includes MCP action processing for external actions.
 """
 
 import subprocess
@@ -14,6 +16,9 @@ from typing import List, Dict
 import logging
 import fcntl
 import sys
+
+# Import MCP processor for Silver Tier
+from .mcp_processor import MCPProcessor
 
 
 class Orchestrator:
@@ -38,6 +43,9 @@ class Orchestrator:
 
         # Load state
         self.last_processed = self._load_state()
+
+        # Initialize MCP processor for Silver Tier
+        self.mcp_processor = MCPProcessor(str(vault_path))
 
     def _setup_logging(self):
         """Configure logging"""
@@ -81,12 +89,24 @@ class Orchestrator:
     def _acquire_processing_lock(self) -> bool:
         """Acquire global processing lock to prevent concurrent Claude runs"""
         try:
+            self.state_dir.mkdir(exist_ok=True)
             self.lock_fd = open(self.processing_lock, 'w')
             fcntl.flock(self.lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             self.lock_fd.write(str(datetime.now().isoformat()))
             self.lock_fd.flush()
             return True
-        except (IOError, OSError):
+        except (IOError, OSError) as e:
+            # Check if lock file is stale (older than 10 minutes)
+            if self.processing_lock.exists():
+                try:
+                    lock_age = time.time() - self.processing_lock.stat().st_mtime
+                    if lock_age > 600:  # 10 minutes
+                        self.logger.warning(f"Stale lock file detected (age: {lock_age:.0f}s), removing")
+                        self.processing_lock.unlink()
+                        # Try to acquire again
+                        return self._acquire_processing_lock()
+                except Exception:
+                    pass
             return False
 
     def _release_processing_lock(self):
@@ -104,14 +124,21 @@ class Orchestrator:
         """Get all files that need processing from monitored folders"""
         files = {
             'needs_action': [],
+            'needs_action_mcp': [],  # MCP action files
             'approved': [],
             'inbox': []
         }
 
-        # Check Needs_Action folder
+        # Check Needs_Action folder for markdown files
         if self.needs_action.exists():
             files['needs_action'] = sorted(
                 [f for f in self.needs_action.glob('*.md') if not f.name.startswith('.')],
+                key=lambda x: x.stat().st_mtime
+            )
+
+            # Check for MCP action files (JSON files with MCP_ prefix)
+            files['needs_action_mcp'] = sorted(
+                [f for f in self.needs_action.glob('MCP_*.json') if not f.name.startswith('.')],
                 key=lambda x: x.stat().st_mtime
             )
 
@@ -141,6 +168,7 @@ class Orchestrator:
         Returns:
             True if successful, False otherwise
         """
+        instruction_file = None
         try:
             self.logger.info(f'Triggering Claude Code: {context}')
 
@@ -178,10 +206,6 @@ All files have been processed and moved to appropriate folders.
                 timeout=300  # 5 minute timeout
             )
 
-            # Clean up instruction file
-            if instruction_file.exists():
-                instruction_file.unlink()
-
             if result.returncode == 0:
                 self.logger.info('Claude processing completed successfully')
                 self.logger.debug(f'Output: {result.stdout[:500]}')
@@ -199,6 +223,13 @@ All files have been processed and moved to appropriate folders.
         except Exception as e:
             self.logger.error(f'Error triggering Claude: {e}', exc_info=True)
             return False
+        finally:
+            # Clean up instruction file
+            if instruction_file and instruction_file.exists():
+                try:
+                    instruction_file.unlink()
+                except Exception as e:
+                    self.logger.warning(f'Failed to cleanup instruction file: {e}')
 
     def _process_needs_action(self, files: List[Path]) -> bool:
         """Process files in Needs_Action folder"""
@@ -208,6 +239,34 @@ All files have been processed and moved to appropriate folders.
         self.logger.info(f'Processing {len(files)} files in Needs_Action')
         context = f'Process {len(files)} new items in /Needs_Action/ folder and update Dashboard.md'
         return self._trigger_claude_processing(context)
+
+    def _process_mcp_actions(self, files: List[Path]) -> bool:
+        """
+        Process MCP action files via MCP processor (Silver Tier)
+
+        Args:
+            files: List of MCP action JSON files
+
+        Returns:
+            True if all actions processed successfully, False otherwise
+        """
+        if not files:
+            return True
+
+        self.logger.info(f'Processing {len(files)} MCP action files')
+
+        try:
+            # Process all pending MCP actions
+            results = self.mcp_processor.process_pending_actions()
+
+            self.logger.info(f"MCP processing complete: {results['successful']} successful, {results['failed']} failed")
+
+            # Return True if at least some succeeded, or if there were no failures
+            return results['failed'] == 0 or results['successful'] > 0
+
+        except Exception as e:
+            self.logger.error(f'Error processing MCP actions: {e}', exc_info=True)
+            return False
 
     def _process_approved(self, files: List[Path]) -> bool:
         """Process approved actions"""
@@ -245,8 +304,12 @@ All files have been processed and moved to appropriate folders.
 
             self.logger.info(f'Found {total_files} total files to process')
 
-            # Process in priority order: Approved > Needs_Action > Inbox
+            # Process in priority order: MCP Actions > Approved > Needs_Action > Inbox
             success = True
+
+            # Silver Tier: Process MCP action files first
+            if files['needs_action_mcp']:
+                success = self._process_mcp_actions(files['needs_action_mcp']) and success
 
             if files['approved']:
                 success = self._process_approved(files['approved']) and success

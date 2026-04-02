@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
 """
 Agent Skill: Process Email Actions
-Executes Gmail actions (mark as read, archive, reply) based on task files
+Creates MCP actions for Gmail operations (mark as read, archive, reply, delete)
+Silver Tier: Uses Gmail MCP Server for external actions
 """
 
 import json
 import sys
 import os
-import base64
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 from base_skill import BaseSkill, run_skill
 
 
 class ProcessEmailActionsSkill(BaseSkill):
-    """Skill to process email actions via Gmail API"""
+    """Skill to process email actions via Gmail MCP Server"""
 
     def _execute_impl(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Process email actions from task file or email file directly"""
@@ -58,42 +56,10 @@ class ProcessEmailActionsSkill(BaseSkill):
         if not message_id:
             raise ValueError("Email message_id not found in email file")
 
-        # Initialize Gmail service
-        service = self._initialize_gmail_service()
-
-        results = []
-
-        # Execute actions
-        for action in actions:
-            action = action.lower().strip()
-            try:
-                if action == 'mark_as_read':
-                    result = self._mark_as_read(service, message_id)
-                    results.append({'action': 'mark_as_read', 'status': 'success', 'result': result})
-
-                elif action == 'archive':
-                    result = self._archive_email(service, message_id)
-                    results.append({'action': 'archive', 'status': 'success', 'result': result})
-
-                elif action == 'reply':
-                    if not reply_body:
-                        raise ValueError("Reply body is required for reply action")
-                    result = self._send_reply(
-                        service, message_id, thread_id, email_data,
-                        reply_body, reply_subject
-                    )
-                    results.append({'action': 'reply', 'status': 'success', 'result': result})
-
-                elif action == 'delete':
-                    result = self._delete_email(service, message_id)
-                    results.append({'action': 'delete', 'status': 'success', 'result': result})
-
-                else:
-                    results.append({'action': action, 'status': 'unknown', 'error': 'Unknown action'})
-
-            except Exception as e:
-                results.append({'action': action, 'status': 'failed', 'error': str(e)})
-                self.logger.error(f"Failed to execute action {action}: {e}")
+        # Silver Tier: Create MCP action files instead of direct API calls
+        results = self._create_mcp_email_actions(
+            message_id, thread_id, email_data, actions, reply_body, reply_subject
+        )
 
         # Move email file to Done with execution summary
         self._archive_email_file(email_path, email_data, actions, results)
@@ -214,6 +180,11 @@ class ProcessEmailActionsSkill(BaseSkill):
         if subject_match:
             email_data['subject'] = subject_match.group(1).strip()
 
+        # Validate required fields
+        if not email_data.get('message_id'):
+            self.logger.error(f"Email file {email_path.name} missing message_id in frontmatter")
+            raise ValueError(f"Email file missing message_id: {email_path.name}")
+
         return email_data
 
     def _parse_email_file_actions(self, email_path: Path) -> Dict[str, Any]:
@@ -303,6 +274,177 @@ class ProcessEmailActionsSkill(BaseSkill):
 
         except ImportError:
             raise ImportError("Gmail API dependencies not installed. Run: pip install google-auth google-auth-oauthlib google-api-python-client")
+
+    def _create_mcp_email_actions(self, message_id: str, thread_id: str,
+                                   email_data: Dict[str, Any], actions: list,
+                                   reply_body: str, reply_subject: str) -> list:
+        """
+        Silver Tier: Create MCP action files for Gmail operations
+        The orchestrator will process these via the Gmail MCP server
+        """
+        results = []
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+        for action in actions:
+            action = action.lower().strip()
+            try:
+                if action == 'mark_as_read':
+                    mcp_action = self._create_mcp_action(
+                        'mark_as_read', message_id, timestamp
+                    )
+                    results.append({
+                        'action': 'mark_as_read',
+                        'status': 'mcp_action_created',
+                        'mcp_file': mcp_action['file'],
+                        'mcp_tool': 'modify_email'
+                    })
+
+                elif action == 'archive':
+                    mcp_action = self._create_mcp_action(
+                        'archive', message_id, timestamp
+                    )
+                    results.append({
+                        'action': 'archive',
+                        'status': 'mcp_action_created',
+                        'mcp_file': mcp_action['file'],
+                        'mcp_tool': 'modify_email'
+                    })
+
+                elif action == 'delete':
+                    mcp_action = self._create_mcp_action(
+                        'delete', message_id, timestamp
+                    )
+                    results.append({
+                        'action': 'delete',
+                        'status': 'mcp_action_created',
+                        'mcp_file': mcp_action['file'],
+                        'mcp_tool': 'trash_email'
+                    })
+
+                elif action == 'reply':
+                    if not reply_body:
+                        raise ValueError("Reply body is required for reply action")
+                    mcp_action = self._create_mcp_reply_action(
+                        message_id, thread_id, email_data,
+                        reply_body, reply_subject, timestamp
+                    )
+                    results.append({
+                        'action': 'reply',
+                        'status': 'mcp_action_created',
+                        'mcp_file': mcp_action['file'],
+                        'mcp_tool': 'send_reply'
+                    })
+
+                else:
+                    results.append({
+                        'action': action,
+                        'status': 'unknown',
+                        'error': 'Unknown action'
+                    })
+
+            except Exception as e:
+                results.append({
+                    'action': action,
+                    'status': 'failed',
+                    'error': str(e)
+                })
+                self.logger.error(f"Failed to create MCP action for {action}: {e}")
+
+        return results
+
+    def _create_mcp_action(self, action_type: str, message_id: str,
+                          timestamp: str) -> Dict[str, Any]:
+        """Create an MCP action file for Gmail operations"""
+        action_filename = f"MCP_EMAIL_{action_type}_{timestamp}_{message_id[:8]}.json"
+        action_path = self.vault_path / 'Needs_Action' / action_filename
+
+        # Map action types to MCP tool parameters
+        tool_params = {
+            'mark_as_read': {
+                'removeLabelIds': ['UNREAD']
+            },
+            'archive': {
+                'removeLabelIds': ['INBOX']
+            },
+            'delete': {
+                'trash': True
+            }
+        }
+
+        mcp_action = {
+            "mcp_server": "gmail",
+            "tool": "modify_email" if action_type != 'delete' else "trash_email",
+            "timestamp": datetime.now().isoformat(),
+            "status": "pending",
+            "params": {
+                "message_id": message_id,
+                **tool_params.get(action_type, {})
+            },
+            "result": None,
+            "executed_at": None
+        }
+
+        action_path.write_text(json.dumps(mcp_action, indent=2), encoding='utf-8')
+        self.logger.info(f"Created MCP action for {action_type}: {action_path.name}")
+
+        return {'file': str(action_path), 'action': action_type}
+
+    def _create_mcp_reply_action(self, message_id: str, thread_id: str,
+                                  email_data: Dict[str, Any], reply_body: str,
+                                  reply_subject: str, timestamp: str) -> Dict[str, Any]:
+        """Create an MCP action file for sending a reply"""
+
+        # Validate reply body
+        if not reply_body or not reply_body.strip():
+            raise ValueError("Reply body cannot be empty")
+
+        action_filename = f"MCP_EMAIL_reply_{timestamp}_{message_id[:8]}.json"
+        action_path = self.vault_path / 'Needs_Action' / action_filename
+
+        # Extract recipient with fallback
+        from_header = email_data.get('from', '')
+        import re
+        email_match = re.search(r'<([^>]+)>', from_header)
+        if email_match:
+            reply_to = email_match.group(1)
+        elif '@' in from_header:
+            # Try to extract email without angle brackets
+            reply_to = from_header.strip()
+        else:
+            raise ValueError(f"Cannot extract reply-to email from: {from_header}")
+
+        # Validate thread_id
+        if not thread_id:
+            self.logger.warning(f"Missing thread_id for reply to {message_id}, using message_id as fallback")
+            thread_id = message_id
+
+        # Get original subject
+        original_subject = email_data.get('subject', '')
+        if not original_subject.lower().startswith('re:'):
+            reply_subject = f"Re: {original_subject}" if not reply_subject else reply_subject
+        else:
+            reply_subject = original_subject if not reply_subject else reply_subject
+
+        mcp_action = {
+            "mcp_server": "gmail",
+            "tool": "send_reply",
+            "timestamp": datetime.now().isoformat(),
+            "status": "pending",
+            "params": {
+                "message_id": message_id,
+                "thread_id": thread_id,
+                "to": reply_to,
+                "subject": reply_subject,
+                "body": reply_body
+            },
+            "result": None,
+            "executed_at": None
+        }
+
+        action_path.write_text(json.dumps(mcp_action, indent=2), encoding='utf-8')
+        self.logger.info(f"Created MCP reply action: {action_path.name}")
+
+        return {'file': str(action_path), 'action': 'reply'}
 
     def _mark_as_read(self, service, message_id: str) -> Dict[str, Any]:
         """Mark email as read by removing UNREAD label"""
@@ -472,7 +614,11 @@ class ProcessEmailActionsSkill(BaseSkill):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python process_email_actions.py '<json_params>'")
+        print("Process Email Actions Skill - Silver Tier (MCP-based)")
+        print("=" * 50)
+        print("This skill creates MCP action files for Gmail operations.")
+        print("The orchestrator processes these via the Gmail MCP server.")
+        print("\nUsage: python process_email_actions.py '<json_params>'")
         print("\nExamples:")
         print('  # Using task file:')
         print('  python process_email_actions.py \'{"task_file": "Inbox/process_email_task.md"}\'')
@@ -481,7 +627,12 @@ if __name__ == "__main__":
         print('  python process_email_actions.py \'{"email_file": "Needs_Action/EMAIL_xxx.md", "actions": ["mark_as_read", "archive"]}\'')
         print()
         print('  # With reply:')
-        print('  python process_email_actions.py \'{"email_file": "Needs_Action/EMAIL_xxx.md", "actions": ["reply"], "reply_body": "Thanks for the update!", "reply_subject": "Re: Original Subject"}\'')
+        print('  python process_email_actions.py \'{"email_file": "Needs_Action/EMAIL_xxx.md", "actions": ["reply"], "reply_body": "Thanks!", "reply_subject": "Re: Subject"}\'')
+        print("\nMCP Actions Created:")
+        print("  - mark_as_read: Removes UNREAD label")
+        print("  - archive: Removes INBOX label")
+        print("  - delete: Moves to trash")
+        print("  - reply: Sends reply via MCP")
         sys.exit(1)
 
     run_skill(ProcessEmailActionsSkill, sys.argv[1])

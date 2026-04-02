@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Agent Skill: Send Email
-Sends emails using Gmail API with Human-in-the-Loop approval support
+Sends emails using Gmail MCP Server with Human-in-the-Loop approval support
+Silver Tier Requirement: Uses MCP server for external action
 """
 
 import json
@@ -11,10 +12,11 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any
 from base_skill import BaseSkill, run_skill
+from gmail_retry_handler import with_gmail_retry
 
 
 class SendEmailSkill(BaseSkill):
-    """Skill to send emails via Gmail API"""
+    """Skill to send emails via Gmail MCP Server"""
 
     def _execute_impl(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Send email based on parameters"""
@@ -25,13 +27,40 @@ class SendEmailSkill(BaseSkill):
         bcc = params.get('bcc', [])
         attachments = params.get('attachments', [])
 
-        # Validate required fields
+        # Enhanced validation
         if not to:
             raise ValueError("Recipient email ('to') is required")
         if not subject:
             raise ValueError("Email subject is required")
-        if not body:
-            raise ValueError("Email body is required")
+        if not body or not body.strip():
+            raise ValueError("Email body is required and cannot be empty")
+
+        # Validate email format
+        if not self._validate_email(to):
+            raise ValueError(f"Invalid email address: {to}")
+
+        # Validate CC/BCC if provided
+        if cc:
+            cc = [cc] if isinstance(cc, str) else cc
+            for email in cc:
+                if not self._validate_email(email):
+                    raise ValueError(f"Invalid CC email address: {email}")
+
+        if bcc:
+            bcc = [bcc] if isinstance(bcc, str) else bcc
+            for email in bcc:
+                if not self._validate_email(email):
+                    raise ValueError(f"Invalid BCC email address: {email}")
+
+        # Validate attachments exist
+        if attachments:
+            attachments = [attachments] if isinstance(attachments, str) else attachments
+            for attachment in attachments:
+                attachment_path = Path(attachment)
+                if not attachment_path.exists():
+                    self.logger.warning(f"Attachment not found: {attachment}")
+                    # Remove non-existent attachments
+                    attachments = [a for a in attachments if Path(a).exists()]
 
         # Check for dry run mode
         dry_run = os.getenv('DRY_RUN', 'false').lower() == 'true'
@@ -48,13 +77,20 @@ class SendEmailSkill(BaseSkill):
         if self._requires_approval(to, subject, body):
             return self._create_approval_request(to, subject, body, cc, bcc, attachments)
 
-        # Send the email
-        result = self._send_email_via_gmail(to, subject, body, cc, bcc, attachments)
-
-        # Log the action
-        self._log_email_sent(to, subject, result)
+        # For Silver Tier: Use MCP Server instead of direct API
+        # Create an MCP action file for the orchestrator to process
+        result = self._create_mcp_email_action(to, subject, body, cc, bcc, attachments)
 
         return result
+
+    def _validate_email(self, email: str) -> bool:
+        """Validate email address format"""
+        import re
+        if not email or not isinstance(email, str):
+            return False
+        # Basic email validation regex
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return re.match(pattern, email.strip()) is not None
 
     def _requires_approval(self, to: str, subject: str, body: str) -> bool:
         """Check if email requires approval based on Company Handbook rules"""
@@ -153,10 +189,11 @@ This email has been flagged as requiring approval based on:
 ## Technical Details
 - Created: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 - Skill: SendEmail
-- Requires Gmail API credentials
+- External Action: Gmail MCP Server
+- Silver Tier Compliance: Uses MCP for external actions
 
 ---
-**Note**: After approval, the email will be sent automatically and this file will be moved to /Done/
+**Note**: After approval, the email will be sent via the Gmail MCP Server and this file will be moved to /Done/
 """
 
         approval_path.write_text(content, encoding='utf-8')
@@ -169,12 +206,56 @@ This email has been flagged as requiring approval based on:
         return {
             "requires_approval": True,
             "approval_file": str(approval_path),
-            "message": f"Email requires approval. Review {approval_path.name} and move to /Approved/ to send."
+            "message": f"Email requires approval. Review {approval_path.name} and move to /Approved/ to send via MCP server."
+        }
+
+    def _create_mcp_email_action(self, to: str, subject: str, body: str,
+                                  cc: list, bcc: list, attachments: list) -> Dict[str, Any]:
+        """
+        Silver Tier: Create MCP action file for Gmail MCP Server
+        The orchestrator will process this via the MCP server
+        """
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        action_filename = f"MCP_EMAIL_{timestamp}.json"
+        action_path = self.vault_path / 'Needs_Action' / action_filename
+
+        # MCP action payload for Gmail server
+        mcp_action = {
+            "mcp_server": "gmail",
+            "tool": "send_email",
+            "timestamp": datetime.now().isoformat(),
+            "status": "pending",
+            "params": {
+                "to": to,
+                "subject": subject,
+                "body": body,
+                "cc": cc if cc else None,
+                "bcc": bcc if bcc else None
+            },
+            "result": None,
+            "executed_at": None
+        }
+
+        action_path.write_text(json.dumps(mcp_action, indent=2), encoding='utf-8')
+        self.logger.info(f"Created MCP email action: {action_path.name}")
+
+        return {
+            "mcp_action_created": True,
+            "action_file": str(action_path),
+            "mcp_server": "gmail",
+            "tool": "send_email",
+            "message": f"Email action queued for MCP execution via Gmail MCP Server. Action file: {action_path.name}"
         }
 
     def _send_email_via_gmail(self, to: str, subject: str, body: str,
                                cc: list, bcc: list, attachments: list) -> Dict[str, Any]:
-        """Send email using Gmail API"""
+        """Send email using Gmail API with retry logic"""
+        return self._send_email_via_gmail_with_retry(to, subject, body, cc, bcc, attachments)
+
+    @with_gmail_retry
+    def _send_email_via_gmail_with_retry(self, to: str, subject: str, body: str,
+                                          cc: list, bcc: list, attachments: list) -> Dict[str, Any]:
+        """Send email using Gmail API (wrapped with retry logic)"""
         try:
             from google.auth.transport.requests import Request
             from google.oauth2.credentials import Credentials
@@ -196,6 +277,8 @@ This email has been flagged as requiring approval based on:
             if not creds or not creds.valid:
                 if creds and creds.expired and creds.refresh_token:
                     creds.refresh(Request())
+                    # Save refreshed token
+                    token_path.write_text(creds.to_json())
                 else:
                     raise RuntimeError("Gmail credentials expired. Please re-authenticate.")
 
@@ -218,6 +301,12 @@ This email has been flagged as requiring approval based on:
             for attachment_path in attachments:
                 attachment = Path(attachment_path)
                 if attachment.exists():
+                    # Check file size (Gmail limit: 25MB)
+                    file_size = attachment.stat().st_size
+                    if file_size > 25 * 1024 * 1024:
+                        self.logger.warning(f"Attachment {attachment.name} exceeds 25MB limit, skipping")
+                        continue
+
                     with open(attachment, 'rb') as f:
                         part = MIMEBase('application', 'octet-stream')
                         part.set_payload(f.read())

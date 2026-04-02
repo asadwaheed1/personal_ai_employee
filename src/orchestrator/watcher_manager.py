@@ -17,6 +17,7 @@ import subprocess
 import time
 import signal
 import sys
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
@@ -35,6 +36,7 @@ class WatcherProcess:
         self.process: Optional[subprocess.Popen] = None
         self.started_at: Optional[datetime] = None
         self.restart_count = 0
+        self.max_restarts = 10  # Prevent infinite restart loops
         self.last_error: Optional[str] = None
         self.status = 'stopped'
 
@@ -104,8 +106,14 @@ class WatcherProcess:
 
     def restart(self) -> bool:
         """Restart the watcher process"""
+        # Check if we've exceeded max restarts
+        if self.restart_count >= self.max_restarts:
+            self.logger.error(f"{self.name} has exceeded max restarts ({self.max_restarts}), not restarting")
+            self.status = 'failed_max_restarts'
+            return False
+
         self.stop()
-        time.sleep(1)
+        time.sleep(2)  # Cooldown period between restarts
         self.restart_count += 1
         return self.start()
 
