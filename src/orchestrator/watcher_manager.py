@@ -50,13 +50,14 @@ class WatcherProcess:
             # Merge environment
             env = {**dict(os.environ), **self.env}
 
-            # Start process
+            # Start process - run from project root (two levels up from this file)
+            project_root = Path(__file__).parent.parent.parent
             self.process = subprocess.Popen(
                 self.command,
                 env=env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                cwd=str(Path(__file__).parent.parent)
+                cwd=str(project_root)
             )
 
             self.started_at = datetime.now()
@@ -69,6 +70,7 @@ class WatcherProcess:
                 stdout, stderr = self.process.communicate()
                 self.last_error = stderr.decode() if stderr else "Process exited immediately"
                 self.status = 'failed'
+                logging.error(f"{self.name} failed to start. Error: {self.last_error}")
                 return False
 
             logging.info(f"Started {self.name} (PID: {self.process.pid})")
@@ -300,23 +302,32 @@ class WatcherManager:
 
 def create_default_manager(vault_path: str) -> WatcherManager:
     """Create a WatcherManager with default watchers"""
+    # Load environment variables from .env file
+    from dotenv import load_dotenv
+    import os
+    env_path = Path(vault_path).parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+
     manager = WatcherManager(vault_path)
 
     # Get Python executable
     python = sys.executable
 
     # File System Watcher (always enabled)
+    inbox_path = str(Path(vault_path) / 'Inbox')
     manager.register_watcher(
         'filesystem_watcher',
-        [python, '-m', 'src.watchers.run_filesystem_watcher', vault_path]
+        [python, '-m', 'src.watchers.run_filesystem_watcher', vault_path, inbox_path, '5']
     )
 
     # Gmail Watcher (if credentials exist)
     gmail_creds = Path(vault_path).parent / 'credentials' / 'gmail_credentials.json'
+    gmail_token = Path(vault_path).parent / 'credentials' / 'gmail_token.json'
     if gmail_creds.exists():
         manager.register_watcher(
             'gmail_watcher',
-            [python, '-m', 'src.watchers.run_gmail_watcher', vault_path]
+            [python, '-m', 'src.watchers.run_gmail_watcher', vault_path, str(gmail_creds), str(gmail_token)]
         )
     else:
         logging.warning(f"Gmail credentials not found at {gmail_creds}, skipping Gmail watcher")

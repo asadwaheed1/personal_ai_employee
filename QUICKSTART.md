@@ -1,14 +1,16 @@
-# AI Employee - Bronze Tier Quick Start Guide
+# AI Employee - Silver Tier Quick Start Guide
 
 ## Overview
 
-This guide will help you set up and run the Bronze Tier AI Employee system in under 30 minutes.
+This guide will help you set up and run the Silver Tier AI Employee system in under 30 minutes.
 
 ## Prerequisites
 
 - Python 3.8 or higher
 - Claude Code CLI installed
 - Linux or macOS (Windows requires WSL)
+- Gmail account with API access (optional but recommended)
+- LinkedIn account (optional)
 
 ## Installation Steps
 
@@ -24,7 +26,62 @@ chmod +x setup.sh start.sh stop.sh
 ./setup.sh
 ```
 
-### 2. Verify Installation
+### 2. Configure Credentials
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit with your credentials
+nano .env
+```
+
+Add your credentials:
+```bash
+# Gmail API
+GMAIL_CREDENTIALS_PATH=credentials/gmail_credentials.json
+
+# LinkedIn (optional)
+LINKEDIN_USERNAME=your_email@example.com
+LINKEDIN_PASSWORD=your_password
+```
+
+### 3. Setup Gmail API (Recommended)
+
+1. Go to https://console.cloud.google.com/apis/credentials
+2. Create a new project or select existing
+3. Enable Gmail API
+4. Create OAuth 2.0 credentials
+5. Download credentials and save as `credentials/gmail_credentials.json`
+
+### 4. First-Time Authentication (IMPORTANT)
+
+**Gmail OAuth (Required on first run):**
+
+Before running `./start.sh`, you must authenticate Gmail once:
+
+```bash
+# Run Gmail watcher manually for first-time OAuth
+python -m src.watchers.run_gmail_watcher ./ai_employee_vault
+
+# A browser window will open for Google authentication
+# Sign in and grant permissions
+# After successful auth, press Ctrl+C to stop
+```
+
+This creates `credentials/gmail_token.json` which will be used automatically by `./start.sh`.
+
+**LinkedIn Authentication (If configured):**
+
+LinkedIn watcher may require manual login on first run due to CAPTCHA/security challenges:
+- The watcher opens a browser window (non-headless mode)
+- Complete any CAPTCHA or security verification manually
+- The session is saved for future runs
+- After first successful login, subsequent runs are automatic
+
+**Note:** After first-time authentication is complete, `./start.sh` will work smoothly without manual intervention.
+
+### 5. Verify Installation
 
 ```bash
 # Check vault structure
@@ -33,10 +90,10 @@ ls -la ai_employee_vault/
 # Should see:
 # - Dashboard.md
 # - Company_Handbook.md
-# - Inbox/, Needs_Action/, Done/, etc.
+# - Inbox/, Needs_Action/, Done/, MCP_Actions/, etc.
 ```
 
-### 3. Start the System
+### 6. Start the System
 
 ```bash
 ./start.sh
@@ -45,12 +102,18 @@ ls -la ai_employee_vault/
 You should see:
 ```
 === Starting AI Employee System ===
-Starting watchdog process...
-✓ Watchdog started (PID: XXXX)
+Starting Watcher Manager...
+✓ Watcher Manager started (PID: XXXX)
+Starting Orchestrator...
+✓ Orchestrator started (PID: XXXX)
 System is now running!
+
+Active Components:
+  - Watcher Manager (manages Gmail & LinkedIn watchers)
+  - Orchestrator (processes actions and MCP requests)
 ```
 
-### 4. Test the System
+### 7. Test the System
 
 Open a new terminal and drop a test file:
 
@@ -78,20 +141,20 @@ Please process this test task and update the dashboard.
 EOF
 ```
 
-### 5. Monitor the System
+### 8. Monitor the System
 
 ```bash
-# Watch the logs
-tail -f ai_employee_vault/Logs/filesystem_watcher_*.log
-
-# In another terminal
+# Watch the orchestrator logs
 tail -f ai_employee_vault/Logs/orchestrator_*.log
+
+# In another terminal, watch watcher logs
+tail -f ai_employee_vault/Logs/watcher_manager_*.log
 
 # Check Dashboard
 cat ai_employee_vault/Dashboard.md
 ```
 
-### 6. Verify Processing
+### 9. Verify Processing
 
 After 30-60 seconds, check:
 
@@ -115,13 +178,42 @@ cat ai_employee_vault/Dashboard.md
 cp /path/to/document.pdf ai_employee_vault/Inbox/
 
 # System will:
-# 1. Detect the file (within 5 seconds)
+# 1. Filesystem watcher detects the file (within 5 seconds)
 # 2. Create metadata in Needs_Action
-# 3. Trigger Claude (within 30 seconds)
+# 3. Orchestrator processes (within 30 seconds)
 # 4. Process and move to Done
 ```
 
-### Workflow 2: Request Approval for Sensitive Action
+### Workflow 2: Email Processing
+
+```bash
+# Gmail watcher automatically detects new emails
+# Creates email files in Needs_Action
+
+# To process an email:
+# 1. Open the email file in Needs_Action
+# 2. Check the boxes for desired actions:
+#    - [x] Mark as read
+#    - [x] Archive
+#    - [x] Reply (add your notes in Human Notes section)
+# 3. Move file to Inbox
+# 4. Orchestrator processes actions via MCP server
+```
+
+### Workflow 3: LinkedIn Monitoring
+
+```bash
+# LinkedIn watcher monitors messages automatically
+# Creates action files for messages with business keywords
+
+# System will:
+# 1. Detect messages with keywords (project, opportunity, etc.)
+# 2. Create action file in Needs_Action
+# 3. Wait for your review and approval
+# 4. Process approved actions
+```
+
+### Workflow 4: Request Approval for Sensitive Action
 
 ```bash
 # Create an approval request
@@ -151,17 +243,20 @@ mv ai_employee_vault/Pending_Approval/payment_request.md \
 # System will process the approved action
 ```
 
-### Workflow 3: Check System Status
+### Workflow 5: Check System Status
 
 ```bash
 # View Dashboard
 cat ai_employee_vault/Dashboard.md
 
+# Check watcher status
+cat ai_employee_vault/.state/watcher_manager_state.json
+
 # Check recent logs
 tail -20 ai_employee_vault/Logs/orchestrator_*.log
 
-# Check for alerts
-cat ai_employee_vault/Logs/ALERTS.md
+# View MCP action status
+ls -la ai_employee_vault/MCP_Actions/
 
 # View processing state
 cat ai_employee_vault/.state/orchestrator_state.json
@@ -182,10 +277,40 @@ cat ai_employee_vault/.state/orchestrator_state.json
 python3 --version  # Should be 3.8+
 
 # Check dependencies
-pip3 list | grep -E "watchdog|psutil"
+pip3 list | grep -E "google-auth|playwright|psutil"
 
 # Reinstall if needed
 pip3 install -r requirements.txt
+playwright install
+```
+
+### Problem: Gmail watcher not working
+
+```bash
+# Check credentials exist
+ls -la credentials/gmail_credentials.json
+
+# Check watcher logs
+cat ai_employee_vault/Logs/gmail_watcher_*.log
+
+# Verify .env configuration
+cat .env | grep GMAIL
+
+# Check watcher process
+ps aux | grep gmail_watcher
+```
+
+### Problem: LinkedIn watcher not working
+
+```bash
+# Check credentials in .env
+cat .env | grep LINKEDIN
+
+# Check watcher logs
+cat ai_employee_vault/Logs/linkedin_watcher_*.log
+
+# LinkedIn may require manual login first time
+# Run in non-headless mode to complete security challenges
 ```
 
 ### Problem: Files not being detected
@@ -199,6 +324,22 @@ ls -la ai_employee_vault/Inbox/
 
 # Check watcher process
 ps aux | grep filesystem_watcher
+```
+
+### Problem: MCP actions not executing
+
+```bash
+# Check MCP_Actions folder
+ls -la ai_employee_vault/MCP_Actions/
+
+# Check orchestrator logs for MCP processing
+grep "MCP" ai_employee_vault/Logs/orchestrator_*.log
+
+# Verify MCP processor is running
+ps aux | grep orchestrator
+
+# Check for stale locks
+ls -la ai_employee_vault/.state/*.lock
 ```
 
 ### Problem: Claude not processing
@@ -223,25 +364,60 @@ rm -f ai_employee_vault/.state/processing.lock
 ```bash
 # Check state files
 cat ai_employee_vault/.state/filesystem_watcher_state.json
+cat ai_employee_vault/.state/watcher_manager_state.json
 
 # Reset state if needed (CAUTION: will reprocess all files)
 rm ai_employee_vault/.state/*.json
 ./stop.sh && ./start.sh
 ```
 
+### Problem: Watcher keeps restarting
+
+```bash
+# Check watcher manager logs
+cat ai_employee_vault/Logs/watcher_manager_*.log
+
+# Check restart count in state
+cat ai_employee_vault/.state/watcher_manager_state.json
+
+# If max restarts reached, check individual watcher logs
+cat ai_employee_vault/Logs/gmail_watcher_*.log
+cat ai_employee_vault/Logs/linkedin_watcher_*.log
+```
+
 ## Configuration
 
 ### Adjust Check Intervals
 
-Edit `start.sh` to change timing:
+Edit watcher configuration in the code:
+
+```python
+# Gmail watcher: src/watchers/gmail_watcher.py
+check_interval = 120  # seconds (default: 2 minutes)
+
+# LinkedIn watcher: src/watchers/linkedin_watcher.py
+check_interval = 300  # seconds (default: 5 minutes)
+
+# Filesystem watcher: src/watchers/filesystem_watcher.py
+check_interval = 5  # seconds (default: 5 seconds)
+```
+
+### Setup Scheduled Tasks
 
 ```bash
-# Default: check every 60 seconds
-python3 "$PROJECT_ROOT/src/orchestrator/watchdog.py" "$VAULT_PATH" 60
+# Linux/Mac - Setup cron jobs
+./scripts/setup_cron.sh
 
-# Faster: check every 30 seconds
-python3 "$PROJECT_ROOT/src/orchestrator/watchdog.py" "$VAULT_PATH" 30
+# Windows - Setup Task Scheduler
+powershell -ExecutionPolicy Bypass -File scripts/setup_task_scheduler.ps1
 ```
+
+Scheduled tasks include:
+- Hourly: Check content calendar
+- Daily 9 AM: LinkedIn posting
+- Weekly Sunday 6 PM: Generate content calendar
+- Every 15 minutes: Process approved actions
+- Daily 8 AM: Dashboard update
 
 ### Customize Company Handbook
 
@@ -262,28 +438,70 @@ Edit `ai_employee_vault/Company_Handbook.md` to add your rules:
 ## Next Steps
 
 1. **Customize the handbook** with your specific rules
-2. **Test with real files** from your workflow
-3. **Monitor for a few days** to ensure stability
-4. **Add more watchers** (Gmail, WhatsApp) for Silver tier
-5. **Implement MCP servers** for external actions
+2. **Test with real emails** - send test emails to monitored account
+3. **Test LinkedIn monitoring** - send test messages with keywords
+4. **Monitor for a few days** to ensure stability
+5. **Setup scheduling** for automated tasks
+6. **Review MCP actions** to understand external integrations
+
+## Silver Tier Features
+
+### Active Watchers
+- **Filesystem Watcher**: Monitors Inbox for dropped files
+- **Gmail Watcher**: Monitors unread emails, creates action files
+- **LinkedIn Watcher**: Monitors messages for business opportunities
+
+### Email Processing
+- Mark as read
+- Archive emails
+- Reply with custom notes
+- Delete emails
+- All actions via Gmail MCP server
+
+### MCP Integration
+- All external actions use MCP servers
+- Gmail MCP for email operations
+- Action files in MCP_Actions folder
+- Automatic execution and result tracking
+
+### Human-in-the-Loop
+- Approval workflow for sensitive actions
+- Email replies require human notes
+- LinkedIn posts require approval
+- Financial transactions flagged
+
+### Scheduling
+- Automated cron jobs for regular tasks
+- Content calendar generation
+- Scheduled LinkedIn posting
+- Regular dashboard updates
 
 ## Getting Help
 
 - Check logs in `ai_employee_vault/Logs/`
-- Review `BRONZE_TIER_IMPLEMENTATION.md` for architecture details
-- See `AGENTS.md` for component documentation
-- Check `requirements.md` for the full specification
+- Review `status.md` for current implementation status
+- See `EMAIL_WORKFLOW_GUIDE.md` for email processing
+- See `LINKEDIN_WATCHER_GUIDE.md` for LinkedIn setup
+- Check `SILVER_TIER_EDGE_CASES_FIXED.md` for edge case handling
+- Review `requirements.md` for full specification
 
 ## Success Checklist
 
 - [ ] System starts without errors
+- [ ] Watcher Manager starts all watchers
 - [ ] Files dropped in Inbox are detected
+- [ ] Gmail watcher detects new emails (if configured)
+- [ ] LinkedIn watcher monitors messages (if configured)
 - [ ] Metadata files created in Needs_Action
-- [ ] Claude processes files (or instruction file created)
+- [ ] Orchestrator processes files
+- [ ] MCP actions execute successfully
 - [ ] Dashboard updates with activity
+- [ ] Watcher status shows in Dashboard
 - [ ] Files move to Done after processing
+- [ ] Email actions work (mark read, archive, reply)
 - [ ] System recovers from manual process kill
 - [ ] Logs show no errors
 - [ ] Approval workflow works (Pending → Approved → Done)
+- [ ] Scheduled tasks execute (if configured)
 
-Congratulations! Your Bronze Tier AI Employee is now operational.
+Congratulations! Your Silver Tier AI Employee is now operational.
