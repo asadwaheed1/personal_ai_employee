@@ -18,7 +18,7 @@ import fcntl
 import sys
 
 # Import MCP processor for Silver Tier
-from .mcp_processor import MCPProcessor
+from mcp_processor import MCPProcessor
 
 
 class Orchestrator:
