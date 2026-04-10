@@ -321,15 +321,23 @@ def create_default_manager(vault_path: str) -> WatcherManager:
     else:
         logging.warning(f"Gmail credentials not found at {gmail_creds}, skipping Gmail watcher")
 
-    # LinkedIn Watcher (if credentials configured)
+    # LinkedIn Watcher (if API credentials configured)
     import os
-    if os.getenv('LINKEDIN_USERNAME') and os.getenv('LINKEDIN_PASSWORD'):
-        manager.register_watcher(
-            'linkedin_watcher',
-            [python, '-m', 'src.watchers.run_linkedin_watcher', vault_path]
-        )
+    if os.getenv('LINKEDIN_CLIENT_ID') and os.getenv('LINKEDIN_CLIENT_SECRET'):
+        # Check if token exists (authentication has been done)
+        token_path = Path(vault_path).parent / 'credentials' / 'linkedin_api_token.json'
+        if token_path.exists():
+            manager.register_watcher(
+                'linkedin_watcher',
+                [python, '-m', 'src.watchers.run_linkedin_watcher', vault_path]
+            )
+        else:
+            logging.warning(
+                f"LinkedIn API token not found at {token_path}. "
+                "Run 'python scripts/setup_linkedin_api.py' to authenticate."
+            )
     else:
-        logging.warning("LinkedIn credentials not configured, skipping LinkedIn watcher")
+        logging.warning("LinkedIn API credentials not configured, skipping LinkedIn watcher")
 
     return manager
 

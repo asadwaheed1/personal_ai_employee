@@ -12,6 +12,8 @@ google-auth-oauthlib>=1.0.0
 google-auth-httplib2>=0.1.0
 google-api-python-client>=2.95.0
 
-# Browser automation for LinkedIn
-playwright>=1.40.0
+# LinkedIn API (Official REST API - recommended)
 requests>=2.31.0
+
+# Browser automation for LinkedIn (legacy fallback - not recommended)
+# playwright>=1.40.0
