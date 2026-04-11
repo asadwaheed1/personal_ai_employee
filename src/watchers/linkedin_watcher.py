@@ -1,11 +1,14 @@
 """
-LinkedIn Watcher - Monitors LinkedIn for new messages and content opportunities
+LinkedIn Watcher (API Version) - Content Calendar and Post Monitoring
 
-This watcher monitors LinkedIn for:
-1. New messages with keywords indicating business opportunities
-2. Content calendar triggers for automated posting
+This watcher monitors for:
+1. Content calendar triggers for scheduled posting
+2. Approval files that need to be processed
 
-Uses Playwright for browser automation.
+Note: Message monitoring has been removed as it requires LinkedIn Partner Program access.
+For messaging, consider using LinkedIn's native notifications or webhook integrations.
+
+Uses the official LinkedIn API v2 for all operations.
 """
 
 import time
@@ -17,371 +20,182 @@ from base_watcher import BaseWatcher
 
 
 class LinkedInWatcher(BaseWatcher):
-    """Watcher for monitoring LinkedIn activity"""
+    """Watcher for LinkedIn content calendar and scheduled posts"""
 
-    def __init__(self, vault_path: str, username: str = None, password: str = None,
-                 session_path: str = None, check_interval: int = 300,
-                 keywords: List[str] = None):
+    def __init__(self, vault_path: str, check_interval: int = 3600):
+        """
+        Initialize LinkedIn watcher
+
+        Args:
+            vault_path: Path to the Obsidian vault
+            check_interval: How often to check (default: 3600s = 1 hour)
+        """
         super().__init__(vault_path, check_interval)
 
-        self.username = username or self._get_env('LINKEDIN_USERNAME')
-        self.password = password or self._get_env('LINKEDIN_PASSWORD')
-        self.session_path = Path(session_path) if session_path else Path(self._get_env('LINKEDIN_SESSION_PATH', './credentials/linkedin_session'))
-        self.keywords = keywords or self._parse_keywords(self._get_env('LINKEDIN_KEYWORDS', 'urgent,opportunity,partnership,meeting'))
-
-        self.logger.info(f'LinkedIn watcher initialized')
-        self.logger.info(f'Session path: {self.session_path}')
+        self.logger.info('LinkedIn watcher initialized (API version)')
         self.logger.info(f'Check interval: {check_interval}s')
-        self.logger.info(f'Monitoring keywords: {self.keywords}')
-
-    def _get_env(self, key: str, default: str = None) -> str:
-        """Get environment variable"""
-        import os
-        return os.getenv(key, default)
-
-    def _parse_keywords(self, keywords_str: str) -> List[str]:
-        """Parse comma-separated keywords"""
-        return [k.strip().lower() for k in keywords_str.split(',')]
+        self.logger.info('Note: Message monitoring requires LinkedIn Partner Program access')
 
     def check_for_updates(self) -> List[Dict[str, Any]]:
-        """Check LinkedIn for new messages"""
+        """Check for content calendar posts that are due"""
+        items = []
+
         try:
-            from playwright.sync_api import sync_playwright
+            # Check content calendar for due posts
+            calendar_items = self._check_content_calendar()
+            items.extend(calendar_items)
 
-            items = []
+            # Log results
+            if items:
+                self.logger.info(f'Found {len(items)} LinkedIn items requiring action')
+            else:
+                self.logger.debug('No LinkedIn items found')
 
-            with sync_playwright() as p:
-                # Launch browser (non-headless for first login)
-                browser = p.chromium.launch_persistent_context(
-                    str(self.session_path),
-                    headless=False,  # Changed to False to allow manual CAPTCHA solving
-                    args=['--disable-blink-features=AutomationControlled']
-                )
-
-                page = browser.new_page()
-
-                # Navigate to LinkedIn
-                page.goto('https://www.linkedin.com/messaging/')
-
-                # Check if already logged in
-                if 'login' in page.url:
-                    self.logger.info('LinkedIn login required')
-                    if not self._login(page):
-                        self.logger.error('Failed to login to LinkedIn')
-                        browser.close()
-                        return []
-
-                # Wait for messaging interface with multiple possible selectors
-                try:
-                    # Try multiple selectors as LinkedIn's structure changes
-                    selectors = [
-                        '[data-testid="conversations-list"]',
-                        '.msg-conversations-container',
-                        '.msg-conversation-listitem',
-                        '[role="main"]'
-                    ]
-
-                    page_loaded = False
-                    for selector in selectors:
-                        try:
-                            page.wait_for_selector(selector, timeout=5000)
-                            self.logger.info(f'Found messaging interface with selector: {selector}')
-                            page_loaded = True
-                            break
-                        except:
-                            continue
-
-                    if not page_loaded:
-                        self.logger.warning('Could not find messaging interface, trying to continue anyway')
-
-                except Exception as e:
-                    self.logger.warning(f'Error waiting for messaging interface: {e}')
-
-                # Find conversations with unread messages
-                conversations = self._get_unread_conversations(page)
-
-                for conv in conversations:
-                    # Check if message contains keywords
-                    if self._contains_keywords(conv['preview']):
-                        items.append({
-                            'type': 'linkedin_message',
-                            'sender': conv['sender'],
-                            'preview': conv['preview'],
-                            'timestamp': conv['timestamp'],
-                            'detected_at': datetime.now().isoformat(),
-                            'keywords_matched': self._get_matched_keywords(conv['preview']),
-                            'priority': 'high'
-                        })
-
-                browser.close()
-
-            self.logger.info(f'Found {len(items)} LinkedIn messages matching keywords')
-            return items
-
-        except ImportError:
-            self.logger.error(
-                "Playwright not installed. "
-                "Run: pip install playwright && playwright install"
-            )
-            return []
         except Exception as e:
             self.logger.error(f'Error checking LinkedIn: {e}', exc_info=True)
-            return []
 
-    def _login(self, page) -> bool:
-        """Login to LinkedIn"""
-        try:
-            page.goto('https://www.linkedin.com/login', timeout=60000)
+        return items
 
-            # Fill credentials
-            page.fill('#username', self.username)
-            page.fill('#password', self.password)
+    def _check_content_calendar(self) -> List[Dict[str, Any]]:
+        """Check content calendar for posts that are due"""
+        items = []
 
-            # Click login button
-            page.click('button[type="submit"]')
+        calendar_path = self.vault_path / 'Content_Calendar'
+        if not calendar_path.exists():
+            return items
 
-            # Wait for navigation with longer timeout
-            self.logger.info('Waiting for login to complete (may require CAPTCHA/verification)...')
-            page.wait_for_load_state('networkidle', timeout=120000)
-
-            # Check if login successful
-            if '/feed' in page.url or '/messaging' in page.url:
-                self.logger.info('LinkedIn login successful')
-                return True
-
-            # Check for security challenge
-            if 'checkpoint' in page.url or 'captcha' in page.content().lower():
-                self.logger.warning('LinkedIn security challenge detected. Please complete it manually in the browser.')
-                self.logger.info('Waiting 2 minutes for manual verification...')
-                # Wait for user to complete challenge
-                page.wait_for_timeout(120000)
-
-                # Check again
-                if '/feed' in page.url or '/messaging' in page.url:
-                    self.logger.info('LinkedIn login successful after manual verification')
-                    return True
-                else:
-                    self.logger.error('Login still not successful after waiting')
-                    return False
-
-            return False
-
-        except Exception as e:
-            self.logger.error(f'LinkedIn login failed: {e}')
-            return False
-
-    def _get_unread_conversations(self, page) -> List[Dict[str, str]]:
-        """Get list of conversations with unread messages"""
-        conversations = []
+        now = datetime.now()
 
         try:
-            # Wait for conversation list with multiple selectors
-            selectors = ['.msg-conversation-listitem', '.msg-conversation-card', '[data-control-name="view_conversation"]']
-
-            items = []
-            for selector in selectors:
+            for post_file in calendar_path.glob('POST_*.json'):
                 try:
-                    page.wait_for_selector(selector, timeout=3000)
-                    items = page.query_selector_all(selector)
-                    if items:
-                        self.logger.info(f'Found {len(items)} conversation items with selector: {selector}')
-                        break
-                except:
-                    continue
+                    data = json.loads(post_file.read_text())
 
-            if not items:
-                self.logger.warning('No conversation items found')
-                return []
+                    # Skip already processed posts
+                    if data.get('status') in ['pending_approval', 'posted', 'cancelled']:
+                        continue
 
-            for item in items:
-                try:
-                    # Check for unread indicator (multiple possible selectors)
-                    unread = (item.query_selector('.msg-conversation-listitem__unread-count') or
-                             item.query_selector('.msg-conversation-card__unread-count') or
-                             item.query_selector('[data-test-unread-count]'))
+                    scheduled_time_str = data.get('scheduled_for')
+                    if not scheduled_time_str:
+                        continue
 
-                    if unread:
-                        # Extract sender name
-                        sender_elem = (item.query_selector('.msg-conversation-listitem__participant-names') or
-                                      item.query_selector('.msg-conversation-card__participant-names') or
-                                      item.query_selector('h3'))
-                        sender = sender_elem.inner_text() if sender_elem else 'Unknown'
+                    scheduled_time = datetime.fromisoformat(scheduled_time_str)
 
-                        # Extract message preview
-                        preview_elem = (item.query_selector('.msg-conversation-listitem__message-snippet') or
-                                       item.query_selector('.msg-conversation-card__message-snippet') or
-                                       item.query_selector('p'))
-                        preview = preview_elem.inner_text() if preview_elem else ''
-
-                        # Extract timestamp
-                        time_elem = (item.query_selector('.msg-conversation-listitem__time') or
-                                    item.query_selector('.msg-conversation-card__time') or
-                                    item.query_selector('time'))
-                        timestamp = time_elem.inner_text() if time_elem else ''
-
-                        conversations.append({
-                            'sender': sender.strip(),
-                            'preview': preview.strip(),
-                            'timestamp': timestamp.strip()
+                    # Check if post is due
+                    if now >= scheduled_time:
+                        items.append({
+                            'type': 'linkedin_scheduled_post',
+                            'content': data.get('content', ''),
+                            'image_path': data.get('image_path'),
+                            'scheduled_for': scheduled_time_str,
+                            'calendar_file': str(post_file),
+                            'detected_at': datetime.now().isoformat(),
+                            'priority': 'normal'
                         })
+
                 except Exception as e:
-                    self.logger.warning(f'Error parsing conversation: {e}')
+                    self.logger.warning(f'Error reading calendar file {post_file}: {e}')
                     continue
 
-            self.logger.info(f'Found {len(conversations)} unread conversations')
-
         except Exception as e:
-            self.logger.warning(f'Error getting conversations: {e}')
+            self.logger.error(f'Error checking content calendar: {e}')
 
-        return conversations
-
-    def _contains_keywords(self, text: str) -> bool:
-        """Check if text contains any monitored keywords"""
-        text_lower = text.lower()
-        return any(keyword in text_lower for keyword in self.keywords)
-
-    def _get_matched_keywords(self, text: str) -> List[str]:
-        """Get list of keywords matched in text"""
-        text_lower = text.lower()
-        return [kw for kw in self.keywords if kw in text_lower]
+        return items
 
     def create_action_file(self, item: Dict[str, Any]) -> Path:
-        """Create action file for LinkedIn message"""
+        """Create action file for scheduled LinkedIn post"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        sender_part = self._sanitize_filename(item['sender'])[:30]
 
-        action_filename = f"LINKEDIN_{timestamp}_{sender_part}.md"
+        action_filename = f"LINKEDIN_SCHEDULED_{timestamp}.md"
         action_filepath = self.needs_action / action_filename
 
         content = f"""---
-type: linkedin_message
-sender: {item['sender']}
+type: linkedin_scheduled_post
+scheduled_for: {item['scheduled_for']}
 detected_at: {item['detected_at']}
-timestamp: {item['timestamp']}
 priority: {item['priority']}
-keywords_matched: {', '.join(item['keywords_matched'])}
 status: pending
+calendar_file: {item['calendar_file']}
 requires_approval: true
 ---
 
-# LinkedIn Message from {item['sender']}
+# Scheduled LinkedIn Post
 
-## Message Preview
-> {item['preview']}
-
-## Detected Keywords
-{chr(10).join(f'- **{kw}**' for kw in item['keywords_matched'])}
-
-## Suggested Actions
-- [ ] Review full conversation on LinkedIn
-- [ ] Draft a response if needed
-- [ ] Check sender's profile for context
-- [ ] Mark as priority if business opportunity
-- [ ] Create task in project management if needed
-
-## Business Context
-This message was flagged because it contains keywords indicating potential business value:
-{chr(10).join(f'- {kw}' for kw in item['keywords_matched'])}
-
-## Processing Notes
-- Open LinkedIn to view full conversation
-- Consider connection strength and previous interactions
-- May require follow-up or meeting scheduling
-
----
-*Detected at: {item['detected_at']}*
-*Original timestamp: {item['timestamp']}*
-"""
-
-        action_filepath.write_text(content, encoding='utf-8')
-        self.logger.info(f'Created LinkedIn action file: {action_filepath.name}')
-
-        return action_filepath
-
-    def post_content(self, content: str, image_path: Path = None) -> Dict[str, Any]:
-        """Post content to LinkedIn (requires manual execution)"""
-        # This creates an approval request for posting
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-
-        post_data = {
-            'type': 'linkedin_post',
-            'content': content,
-            'image_path': str(image_path) if image_path else None,
-            'created_at': datetime.now().isoformat(),
-            'scheduled_for': None
-        }
-
-        # Create approval request
-        approval_filename = f"LINKEDIN_POST_{timestamp}.md"
-        approval_path = self.vault_path / 'Pending_Approval' / approval_filename
-
-        approval_content = f"""---
-type: approval_request
-action: linkedin_post
-status: pending
-created: {datetime.now().isoformat()}
----
-
-# Approval Request: LinkedIn Post
-
-## Post Content
+## Content
 ```
-{content}
+{item['content']}
 ```
 
-## Image Attachment
-{'Yes: ' + str(image_path) if image_path else 'None'}
-
-## Purpose
-This post is part of the automated content strategy to generate business leads.
+## Details
+- **Scheduled for**: {item['scheduled_for']}
+- **Detected at**: {item['detected_at']}
+- **Image**: {'Yes - ' + item['image_path'] if item.get('image_path') else 'No'}
 
 ## Actions Required
 1. Review the content above
-2. Move this file to **/Approved/** to schedule posting
-3. Move this file to **/Rejected/** to cancel
+2. Create approval request if you want to proceed
+3. Or use: Move to Approved/ to trigger posting
 
-## Technical Details
-- Created: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-- Platform: LinkedIn
-- Post type: Organic content
+## Processing Notes
+This is a scheduled post from your content calendar. The post was scheduled for
+{item['scheduled_for']} and is now ready to be published.
 
 ---
-**Note**: After approval, the post will be published automatically.
+*Detected at: {item['detected_at']}*
+*Scheduled for: {item['scheduled_for']}*
 """
 
-        approval_path.write_text(approval_content, encoding='utf-8')
+        action_filepath.write_text(content, encoding='utf-8')
+        self.logger.info(f'Created LinkedIn scheduled post action file: {action_filepath.name}')
 
-        # Save post data
-        data_path = approval_path.with_suffix('.json')
-        data_path.write_text(json.dumps(post_data, indent=2))
+        return action_filepath
 
-        self.logger.info(f'Created LinkedIn post approval request: {approval_path.name}')
 
-        return {
-            'requires_approval': True,
-            'approval_file': str(approval_path),
-            'message': 'LinkedIn post requires approval. Review and move to /Approved/ to publish.'
-        }
+def main():
+    """Main entry point"""
+    import sys
+    from dotenv import load_dotenv
+
+    # Load environment variables
+    env_path = Path(__file__).parent.parent.parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+
+    import os
+
+    # Get configuration
+    vault_path = os.getenv('VAULT_PATH', './ai_employee_vault')
+    check_interval = int(os.getenv('LINKEDIN_CHECK_INTERVAL', '3600'))
+
+    # Allow command line override
+    if len(sys.argv) > 1:
+        vault_path = sys.argv[1]
+    if len(sys.argv) > 2:
+        check_interval = int(sys.argv[2])
+
+    vault_path = Path(vault_path)
+    if not vault_path.exists():
+        print(f'Error: Vault path does not exist: {vault_path}')
+        sys.exit(1)
+
+    print('=' * 70)
+    print('LinkedIn Watcher (API Version)')
+    print('=' * 70)
+    print(f'Vault: {vault_path}')
+    print(f'Check interval: {check_interval}s ({check_interval//60} minutes)')
+    print('\nNote: This version uses the official LinkedIn API v2.')
+    print('Message monitoring requires LinkedIn Partner Program access.')
+    print('Focusing on content calendar and scheduled posts.\n')
+
+    try:
+        watcher = LinkedInWatcher(str(vault_path), check_interval)
+        watcher.run()
+    except KeyboardInterrupt:
+        print('\n\nLinkedIn Watcher stopped by user')
+    except Exception as e:
+        print(f'\n\nLinkedIn Watcher error: {e}')
+        raise
 
 
 if __name__ == '__main__':
-    import sys
-
-    if len(sys.argv) < 2:
-        print('Usage: python linkedin_watcher.py <vault_path> [username] [password] [check_interval]')
-        print('Example: python linkedin_watcher.py ./ai_employee_vault user@email.com password 300')
-        print('\nEnvironment variables can also be used:')
-        print('  LINKEDIN_USERNAME, LINKEDIN_PASSWORD, LINKEDIN_SESSION_PATH')
-        sys.exit(1)
-
-    vault_path = sys.argv[1]
-    username = sys.argv[2] if len(sys.argv) > 2 else None
-    password = sys.argv[3] if len(sys.argv) > 3 else None
-    check_interval = int(sys.argv[4]) if len(sys.argv) > 4 else 300
-
-    print(f'Starting LinkedIn Watcher...')
-    print(f'Vault: {vault_path}')
-    print(f'Check interval: {check_interval}s')
-
-    watcher = LinkedInWatcher(vault_path, username, password, check_interval=check_interval)
-    watcher.run()
+    main()

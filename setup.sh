@@ -1,16 +1,17 @@
 #!/bin/bash
 
-# Setup script for AI Employee Bronze Tier
+# Setup script for AI Employee Silver Tier (with LinkedIn API)
 
 set -e
 
-echo "=== AI Employee Bronze Tier Setup ==="
+echo "=== AI Employee Silver Tier Setup ==="
 echo ""
 
 # Get the script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$SCRIPT_DIR"
 VAULT_PATH="$PROJECT_ROOT/ai_employee_vault"
+CREDENTIALS_PATH="$PROJECT_ROOT/credentials"
 
 echo "Project root: $PROJECT_ROOT"
 echo "Vault path: $VAULT_PATH"
@@ -45,7 +46,7 @@ echo ""
 
 # Install Python dependencies
 echo "Installing Python dependencies..."
-"$PROJECT_ROOT/venv/bin/pip" install -r requirements.txt
+"$PROJECT_ROOT/venv/bin/pip" install -r requirements.txt -q
 echo "✓ Dependencies installed"
 echo ""
 
@@ -54,24 +55,18 @@ echo "Setting up Agent Skills..."
 mkdir -p "$PROJECT_ROOT/.claude/tools"
 mkdir -p "$PROJECT_ROOT/src/orchestrator/skills"
 
-if [ -f "$PROJECT_ROOT/.claude/tools/bronze_tier_skills.json" ]; then
-    echo "✓ Skills manifest found"
-else
-    echo "⚠ Warning: Skills manifest (.claude/tools/bronze_tier_skills.json) not found"
-fi
-
 if ls "$PROJECT_ROOT"/src/orchestrator/skills/*.py 1> /dev/null 2>&1; then
     chmod +x "$PROJECT_ROOT"/src/orchestrator/skills/*.py
     echo "✓ Skill scripts made executable"
-else
-    echo "⚠ Warning: No skill scripts found in src/orchestrator/skills/"
 fi
 echo ""
 
 # Create vault structure if it doesn't exist
 echo "Setting up vault structure..."
-mkdir -p "$VAULT_PATH"/{Inbox,Needs_Action,Done,Pending_Approval,Approved,Rejected,Plans,Logs,.state,.obsidian}
+mkdir -p "$VAULT_PATH"/{Inbox,Needs_Action,Done,Pending_Approval,Approved,Rejected,Plans,Logs,.state,.obsidian,Content_Calendar}
+mkdir -p "$CREDENTIALS_PATH"
 echo "✓ Vault directories created"
+echo "✓ Credentials directory created"
 echo ""
 
 # Create Dashboard.md if it doesn't exist
@@ -81,25 +76,27 @@ if [ ! -f "$VAULT_PATH/Dashboard.md" ]; then
 # AI Employee Dashboard
 
 ## Last Updated
-$(date +%Y-%m-%d\ %H:%M)
+_Setup pending_
 
 ## System Status
-🟢 Operational
-
-## Pending Actions
-No pending actions
+- 🟢 File System Watcher: _Not started_
+- 🟡 Gmail Watcher: _Not configured_
+- 🟡 LinkedIn Watcher: _Not configured_
 
 ## Recent Activity
-- [$(date +%Y-%m-%d\ %H:%M)] Dashboard initialized
+_No activity yet_
 
-## Statistics
-- Total Items Processed: 0
-- Items in Queue: 0
-- Failed Items: 0
+## Pending Actions
+_No pending actions_
 
 ## Quick Links
-- [[Company_Handbook]]
-- [[README]]
+- [Needs_Action](./Needs_Action/)
+- [Pending_Approval](./Pending_Approval/)
+- [Content_Calendar](./Content_Calendar/)
+- [Logs](./Logs/)
+
+---
+*Dashboard auto-updates when watchers are running*
 EOF
     echo "✓ Dashboard.md created"
 else
@@ -114,7 +111,7 @@ if [ ! -f "$VAULT_PATH/Company_Handbook.md" ]; then
 # Company Handbook - AI Employee Rules of Engagement
 
 ## Last Updated
-$(date +%Y-%m-%d)
+2026-04-10
 
 ## Core Principles
 
@@ -163,43 +160,6 @@ Always require human approval for:
 | Financial transaction ≥ $50 | | ✓ |
 | Social media post | | ✓ |
 | Delete files | | ✓ |
-
-## Response Templates
-
-### Email Reply Template
-```
-Subject: Re: [Original Subject]
-
-Dear [Name],
-
-[Response content]
-
-Best regards,
-[Your Name]
-
----
-This email was drafted with AI assistance.
-```
-
-### Approval Request Template
-```
----
-type: approval_request
-action: [action_type]
-priority: [high/medium/low]
-created: [timestamp]
-expires: [timestamp]
----
-
-## Action Details
-[Detailed description]
-
-## To Approve
-Move this file to /Approved/
-
-## To Reject
-Move this file to /Rejected/
-```
 EOF
     echo "✓ Company_Handbook.md created"
 else
@@ -207,139 +167,129 @@ else
 fi
 echo ""
 
-# Create README.md for Obsidian
-if [ ! -f "$VAULT_PATH/README.md" ]; then
-    echo "Creating README.md..."
-    cat > "$VAULT_PATH/README.md" << 'EOF'
-# AI Employee Vault - Obsidian Guide
+# Environment configuration
+echo "=== Environment Configuration ==="
+echo ""
 
-Welcome to the Personal AI Employee vault! This Obsidian workspace is designed to work seamlessly with the automated AI Employee system.
+ENV_FILE="$PROJECT_ROOT/.env"
 
-## 📁 Folder Structure
+if [ -f "$ENV_FILE" ]; then
+    echo "✓ .env file already exists"
+    read -p "Do you want to reconfigure? (y/N): " RECONFIGURE
+    if [[ ! $RECONFIGURE =~ ^[Yy]$ ]]; then
+        echo "Using existing .env configuration"
+    else
+        # Reconfigure
+        echo ""
+        echo "LinkedIn API Configuration"
+        echo "Get credentials from: https://www.linkedin.com/developers/apps"
+        echo ""
+        read -p "LinkedIn Client ID: " LINKEDIN_CLIENT_ID
+        read -p "LinkedIn Client Secret: " LINKEDIN_CLIENT_SECRET
+        read -p "LinkedIn Redirect URI [http://localhost:8000/callback]: " LINKEDIN_REDIRECT
+        LINKEDIN_REDIRECT=${LINKEDIN_REDIRECT:-http://localhost:8000/callback}
 
-### 📥 **Inbox**
-Drop new task files here. The AI Employee monitors this folder and automatically processes files every 30 seconds.
+        # Update .env
+        sed -i "s/^LINKEDIN_CLIENT_ID=.*/LINKEDIN_CLIENT_ID=$LINKEDIN_CLIENT_ID/" "$ENV_FILE"
+        sed -i "s/^LINKEDIN_CLIENT_SECRET=.*/LINKEDIN_CLIENT_SECRET=$LINKEDIN_CLIENT_SECRET/" "$ENV_FILE"
+        sed -i "s|^LINKEDIN_REDIRECT_URI=.*|LINKEDIN_REDIRECT_URI=$LINKEDIN_REDIRECT|" "$ENV_FILE"
 
-### ⚡ **Needs_Action**
-Files that require processing but may need additional context or decisions.
-
-### ✅ **Done**
-Completed tasks and generated outputs are stored here with timestamps.
-
-### 📋 **Plans**
-Strategic plans and multi-step workflows created by the AI Employee.
-
-### ⏳ **Pending_Approval**
-Tasks requiring human approval before execution (payments, emails, etc.).
-
-### ✓ **Approved**
-Approved tasks ready for execution.
-
-### ❌ **Rejected**
-Tasks that were rejected and won't be executed.
-
-### 📊 **Logs**
-System activity logs and processing history.
-
-## 🎯 Quick Start
-
-1. **View Dashboard**: Open `Dashboard.md` to see current system status
-2. **Create a Task**: Create a new `.md` file in the Inbox folder
-3. **Monitor Activity**: Watch the Dashboard update automatically
-4. **Review Results**: Check the Done folder for completed tasks
-
-## 📝 Task File Template
-
-```markdown
-# Task: [Task Name]
-
-## Task Type
-[Information Request / Action / Report / etc.]
-
-## Priority
-[High / Medium / Low]
-
-## Description
-[Detailed description of what needs to be done]
-
-## Expected Output
-[What you expect as a result]
-
-## Notes
-[Any additional context]
-
----
-*Created: YYYY-MM-DD*
-*Status: Pending*
-```
-
-## 🔗 Key Files
-
-- [[Dashboard]] - System status and recent activity
-- [[Company_Handbook]] - Rules and guidelines for the AI Employee
-
-## 🚀 System Integration
-
-The AI Employee system runs in the background and:
-- Monitors Inbox, Needs_Action, and Approved folders
-- Processes files automatically using Claude Code
-- Updates the Dashboard in real-time
-- Logs all activities
-
-## 💡 Tips
-
-- Use Obsidian's graph view to visualize task relationships
-- Tag tasks with `#urgent`, `#payment`, `#email` for easy filtering
-- Link related tasks using `[[Task Name]]` syntax
-- Keep the Dashboard open to monitor system activity
-
----
-*Last Updated: $(date +%Y-%m-%d)*
-EOF
-    echo "✓ README.md created"
+        echo "✓ .env file updated"
+    fi
 else
-    echo "✓ README.md already exists"
+    # Create new .env
+    if [ -f "$PROJECT_ROOT/.env.example" ]; then
+        cp "$PROJECT_ROOT/.env.example" "$ENV_FILE"
+        echo "✓ Created .env from template"
+        echo ""
+        echo "Please edit .env file and add your credentials:"
+        echo "  - LINKEDIN_CLIENT_ID"
+        echo "  - LINKEDIN_CLIENT_SECRET"
+        echo "  - GMAIL_CREDENTIALS_PATH (optional)"
+        echo ""
+    fi
 fi
 echo ""
 
-# Create Obsidian configuration
-echo "Setting up Obsidian configuration..."
-if [ ! -f "$VAULT_PATH/.obsidian/app.json" ]; then
-    cat > "$VAULT_PATH/.obsidian/app.json" << 'EOF'
-{
-  "showLineNumber": true,
-  "foldHeading": true,
-  "foldIndent": true,
-  "showFrontmatter": true,
-  "showUnsupportedFiles": false,
-  "attachmentFolderPath": "Done",
-  "newFileLocation": "folder",
-  "newFileFolderPath": "Inbox",
-  "alwaysUpdateLinks": true,
-  "useMarkdownLinks": true,
-  "promptDelete": true,
-  "vimMode": false,
-  "spellcheck": true,
-  "spellcheckLanguages": ["en-US"],
-  "livePreview": true,
-  "readableLineLength": true,
-  "strictLineBreaks": false,
-  "showIndentGuide": true,
-  "defaultViewMode": "preview"
-}
-EOF
-    echo "✓ Obsidian app.json created"
+# LinkedIn OAuth setup
+echo "=== LinkedIn API Authentication ==="
+echo ""
+
+# Check if credentials are configured
+if [ -f "$ENV_FILE" ]; then
+    source "$ENV_FILE"
+fi
+
+if [ -z "$LINKEDIN_CLIENT_ID" ] || [ -z "$LINKEDIN_CLIENT_SECRET" ] || [ "$LINKEDIN_CLIENT_ID" = "your_client_id_here" ]; then
+    echo "⚠ LinkedIn credentials not configured in .env"
+    echo ""
+    echo "To enable LinkedIn posting:"
+    echo "1. Go to https://www.linkedin.com/developers/apps"
+    echo "2. Create an app or select existing app"
+    echo "3. Enable 'Share on LinkedIn' and 'Sign In with LinkedIn using OpenID Connect'"
+    echo "4. Add redirect URI: http://localhost:8000/callback"
+    echo "5. Copy Client ID and Client Secret to .env file"
+    echo "6. Run: python scripts/setup_linkedin_api.py"
+    echo ""
 else
-    echo "✓ Obsidian app.json already exists"
+    # Check if already authenticated
+    if [ -f "$CREDENTIALS_PATH/linkedin_api_token.json" ]; then
+        echo "✓ LinkedIn already authenticated"
+        echo "  Token: $CREDENTIALS_PATH/linkedin_api_token.json"
+        echo ""
+        read -p "Re-authenticate? (y/N): " REAUTH
+        if [[ $REAUTH =~ ^[Yy]$ ]]; then
+            echo ""
+            echo "Run: python scripts/setup_linkedin_api.py"
+            echo ""
+        fi
+    else
+        echo "LinkedIn credentials found in .env"
+        echo ""
+        read -p "Authenticate with LinkedIn now? (Y/n): " DO_AUTH
+        if [[ ! $DO_AUTH =~ ^[Nn]$ ]]; then
+            echo ""
+            python3 scripts/setup_linkedin_api.py
+        else
+            echo ""
+            echo "You can authenticate later by running:"
+            echo "  python scripts/setup_linkedin_api.py"
+            echo ""
+        fi
+    fi
+fi
+
+# Gmail setup check
+echo "=== Gmail Setup Check ==="
+echo ""
+
+if [ -f "$CREDENTIALS_PATH/gmail_credentials.json" ]; then
+    echo "✓ Gmail credentials found"
+    if [ -f "$CREDENTIALS_PATH/gmail_token.json" ]; then
+        echo "✓ Gmail already authenticated"
+    else
+        echo "  Run Gmail watcher once to authenticate:"
+        echo "  python -m src.watchers.run_gmail_watcher $VAULT_PATH"
+    fi
+else
+    echo "⚠ Gmail credentials not found"
+    echo ""
+    echo "To enable Gmail monitoring:"
+    echo "1. Go to https://console.cloud.google.com/apis/credentials"
+    echo "2. Create OAuth 2.0 credentials"
+    echo "3. Download and save to: $CREDENTIALS_PATH/gmail_credentials.json"
+    echo "4. Run Gmail watcher to authenticate"
 fi
 echo ""
 
-# Validation step
-echo "Validating setup..."
+# Validation
+echo "=== Validating Setup ==="
+echo ""
+
 validation_failed=0
 
 # Check required directories
-required_dirs=("Inbox" "Needs_Action" "Done" "Plans" "Pending_Approval" "Approved" "Rejected" "Logs" ".state")
+required_dirs=("Inbox" "Needs_Action" "Done" "Plans" "Pending_Approval" "Approved" "Rejected" "Logs" ".state" "Content_Calendar")
 for dir in "${required_dirs[@]}"; do
     if [ ! -d "$VAULT_PATH/$dir" ]; then
         echo "✗ Missing directory: $dir"
@@ -348,7 +298,7 @@ for dir in "${required_dirs[@]}"; do
 done
 
 # Check required files
-required_files=("Dashboard.md" "Company_Handbook.md" "README.md")
+required_files=("Dashboard.md" "Company_Handbook.md")
 for file in "${required_files[@]}"; do
     if [ ! -f "$VAULT_PATH/$file" ]; then
         echo "✗ Missing file: $file"
@@ -369,19 +319,27 @@ echo "=== Setup Complete ==="
 echo ""
 echo "✓ Virtual environment created"
 echo "✓ Python dependencies installed"
-echo "✓ Agent Skills structure verified"
 echo "✓ Vault structure created"
-echo "✓ Dashboard.md configured"
-echo "✓ Company_Handbook.md configured"
-echo "✓ README.md created"
-echo "✓ Obsidian configuration ready"
+echo "✓ Dashboard and handbook configured"
 echo "✓ Setup validation passed"
 echo ""
 echo "Next steps:"
-echo "1. Start the system: ./start.sh"
-echo "2. Open Obsidian: obsidian $VAULT_PATH"
-echo "3. Drop task files in: $VAULT_PATH/Inbox"
-echo "4. Monitor Dashboard.md for activity"
 echo ""
-echo "The AI Employee will automatically process files every 30 seconds."
+echo "1. Configure credentials (if not done):"
+echo "   - Edit .env file with LinkedIn credentials"
+echo "   - Run: python scripts/setup_linkedin_api.py"
+echo ""
+echo "2. Start the watcher manager:"
+echo "   python -m src.orchestrator.watcher_manager $VAULT_PATH start"
+echo ""
+echo "3. Or start individual watchers:"
+echo "   python -m src.watchers.run_filesystem_watcher $VAULT_PATH"
+echo "   python -m src.watchers.run_gmail_watcher $VAULT_PATH"
+echo "   python -m src.watchers.run_linkedin_watcher $VAULT_PATH"
+echo ""
+echo "4. Test LinkedIn posting:"
+echo "   python -m src.orchestrator.skills.post_linkedin '{\"action\": \"create_post\", \"content\": \"Hello LinkedIn!\"}'"
+echo ""
+echo "5. Open Dashboard:"
+echo "   $VAULT_PATH/Dashboard.md"
 echo ""

@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """
 Agent Skill: Post to LinkedIn
-Posts content to LinkedIn with Human-in-the-Loop approval support
+Posts content to LinkedIn using the official LinkedIn API v2 with Human-in-the-Loop approval support
 
-This skill supports both:
-1. Direct posting with approval workflow
-2. Scheduled posting from Content_Calendar
+This skill uses the LinkedIn OAuth 2.0 API for posting content:
+- Text shares
+- Posts with links
+- Posts with images
+
+Requires:
+- LINKEDIN_CLIENT_ID
+- LINKEDIN_CLIENT_SECRET
+- LINKEDIN_REDIRECT_URI
+- Authenticated token (run setup_linkedin_auth.py first)
 """
 
 import json
@@ -14,10 +21,11 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from base_skill import BaseSkill, run_skill
+from linkedin_api_client import LinkedInAPIClient
 
 
 class PostLinkedInSkill(BaseSkill):
-    """Skill to post content to LinkedIn"""
+    """Skill to post content to LinkedIn using official API"""
 
     def _execute_impl(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute LinkedIn posting based on parameters"""
@@ -34,6 +42,31 @@ class PostLinkedInSkill(BaseSkill):
         else:
             raise ValueError(f"Unknown action: {action}")
 
+    def _get_linkedin_client(self) -> LinkedInAPIClient:
+        """Get configured LinkedIn API client"""
+        import os
+
+        client_id = os.getenv('LINKEDIN_CLIENT_ID')
+        client_secret = os.getenv('LINKEDIN_CLIENT_SECRET')
+        redirect_uri = os.getenv('LINKEDIN_REDIRECT_URI', 'http://localhost:8000/callback')
+        token_path = os.getenv('LINKEDIN_TOKEN_PATH', './credentials/linkedin_api_token.json')
+
+        if not client_id or not client_secret:
+            raise ValueError(
+                "LinkedIn API credentials not configured. "
+                "Set LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET environment variables."
+            )
+
+        client = LinkedInAPIClient(client_id, client_secret, redirect_uri, token_path)
+
+        if not client.is_authenticated():
+            raise RuntimeError(
+                "LinkedIn not authenticated. "
+                f"Run: python src/orchestrator/skills/linkedin_api_client.py {client_id} {client_secret} {redirect_uri}"
+            )
+
+        return client
+
     def _create_post(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new LinkedIn post"""
         content = params.get('content')
@@ -42,13 +75,6 @@ class PostLinkedInSkill(BaseSkill):
 
         if not content:
             raise ValueError("Post content is required")
-
-        # Check content calendar if available
-        calendar_post = self._get_content_from_calendar()
-        if calendar_post and not content:
-            content = calendar_post['content']
-            if calendar_post.get('image_path'):
-                image_path = calendar_post['image_path']
 
         # Validate content
         if len(content) > 3000:
@@ -185,6 +211,8 @@ class PostLinkedInSkill(BaseSkill):
     def _create_approval_request(self, content: str, image_path: Optional[str],
                                   scheduled_for: Optional[str]) -> Dict[str, Any]:
         """Create approval request file for LinkedIn post"""
+        import os
+
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
         approval_filename = f"LINKEDIN_POST_{timestamp}.md"
@@ -202,6 +230,10 @@ class PostLinkedInSkill(BaseSkill):
         # Determine post type
         post_type = "Scheduled Post" if scheduled_for else "Immediate Post"
 
+        # Determine if using API
+        using_api = os.getenv('LINKEDIN_CLIENT_ID') is not None
+        api_status = "✓ Official LinkedIn API" if using_api else "⚠ Browser automation"
+
         approval_content = f"""---
 type: approval_request
 action: linkedin_post
@@ -216,6 +248,9 @@ expires: {(datetime.now() + timedelta(hours=48)).isoformat()}
 
 ## Post Type
 **{post_type}**
+
+## API Status
+**{api_status}**
 
 ## Post Content
 ```
@@ -261,7 +296,7 @@ Once approved, the post will be published to LinkedIn automatically and:
 
 ---
 **Created**: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-**Platform**: LinkedIn
+**Platform**: LinkedIn (Official API v2)
 **Skill**: PostLinkedIn
 """
 
@@ -294,7 +329,7 @@ Once approved, the post will be published to LinkedIn automatically and:
         return self._post_to_linkedin(content, image_path)
 
     def _post_to_linkedin(self, content: str, image_path: Optional[str]) -> Dict[str, Any]:
-        """Actually post content to LinkedIn using browser automation"""
+        """Actually post content to LinkedIn using the official API"""
         import os
 
         # Check dry run mode
@@ -307,85 +342,54 @@ Once approved, the post will be published to LinkedIn automatically and:
                 "message": "Post would be published (dry run mode)"
             }
 
-        # Get credentials
-        username = os.getenv('LINKEDIN_USERNAME')
-        password = os.getenv('LINKEDIN_PASSWORD')
-        session_path = Path(os.getenv('LINKEDIN_SESSION_PATH', './credentials/linkedin_session'))
-
-        if not username or not password:
-            raise ValueError("LinkedIn credentials not configured")
-
         try:
-            from playwright.sync_api import sync_playwright
+            # Get LinkedIn API client
+            client = self._get_linkedin_client()
 
-            with sync_playwright() as p:
-                # Launch browser
-                browser = p.chromium.launch_persistent_context(
-                    str(session_path),
-                    headless=False,  # Need visible browser for posting
-                    args=['--disable-blink-features=AutomationControlled']
-                )
+            # Post with image if provided
+            if image_path and Path(image_path).exists():
+                result = client.create_post_with_image(content, str(image_path))
+            else:
+                result = client.create_text_share(content)
 
-                page = browser.new_page()
+            if result.get('success'):
+                self.logger.info(f"LinkedIn post published successfully: {result.get('post_id')}")
 
-                # Navigate to LinkedIn
-                page.goto('https://www.linkedin.com/')
+                # Log activity
+                self._log_post(content, result.get('post_id'))
 
-                # Check/login
-                if 'login' in page.url:
-                    page.fill('#username', username)
-                    page.fill('#password', password)
-                    page.click('button[type="submit"]')
-                    page.wait_for_load_state('networkidle')
+                return {
+                    "success": True,
+                    "content": content[:100] + "...",
+                    "posted_at": datetime.now().isoformat(),
+                    "post_id": result.get('post_id'),
+                    "post_url": result.get('url'),
+                    "message": "LinkedIn post published successfully via API"
+                }
+            else:
+                error_msg = result.get('message', 'Unknown error')
+                self.logger.error(f"LinkedIn API error: {error_msg}")
+                raise RuntimeError(f"LinkedIn API error: {error_msg}")
 
-                # Wait for feed
-                page.wait_for_selector('.share-box-feed-entry__trigger', timeout=10000)
-
-                # Click start post
-                page.click('.share-box-feed-entry__trigger')
-                page.wait_for_selector('.ql-editor', timeout=10000)
-
-                # Type content
-                page.fill('.ql-editor', content)
-
-                # Upload image if provided
-                if image_path and Path(image_path).exists():
-                    page.click('[data-testid="open-photo-video-upload-btn"]')
-                    page.set_input_files('input[type="file"]', str(image_path))
-                    page.wait_for_selector('.share-creation-state__preview-img', timeout=10000)
-
-                # Click post
-                page.click('.share-actions__primary-action button')
-                page.wait_for_load_state('networkidle')
-
-                # Verify post was made
-                page.wait_for_timeout(2000)  # Wait for post to process
-
-                browser.close()
-
-            self.logger.info("LinkedIn post published successfully")
-
-            # Log activity
-            self._log_post(content)
-
-            return {
-                "success": True,
-                "content": content[:100] + "...",
-                "posted_at": datetime.now().isoformat(),
-                "message": "LinkedIn post published successfully"
-            }
-
+        except ValueError as e:
+            self.logger.error(f"LinkedIn configuration error: {e}")
+            raise
+        except RuntimeError as e:
+            self.logger.error(f"LinkedIn authentication error: {e}")
+            raise
         except Exception as e:
             self.logger.error(f"Failed to post to LinkedIn: {e}", exc_info=True)
             raise RuntimeError(f"LinkedIn posting failed: {e}")
 
-    def _log_post(self, content: str):
+    def _log_post(self, content: str, post_id: Optional[str] = None):
         """Log the posted content"""
         log_entry = {
             "timestamp": datetime.now().isoformat(),
             "action": "linkedin_post",
             "content_preview": content[:100] + "..." if len(content) > 100 else content,
-            "platform": "LinkedIn"
+            "platform": "LinkedIn",
+            "api_version": "v2",
+            "post_id": post_id
         }
 
         log_path = self.vault_path / 'Logs' / f'linkedin_activity_{datetime.now().strftime("%Y-%m-%d")}.json'
