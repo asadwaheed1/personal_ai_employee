@@ -144,29 +144,39 @@ class LinkedInAPIClient:
 
         return auth_url, code_verifier
 
-    def exchange_code_for_token(self, authorization_code: str, code_verifier: str) -> bool:
+    def exchange_code_for_token(self, authorization_code: str, code_verifier: Optional[str] = None) -> bool:
         """
         Exchange authorization code for access token
 
         Args:
             authorization_code: Code from OAuth callback
-            code_verifier: PKCE verifier from get_authorization_url()
+            code_verifier: Optional PKCE verifier from get_authorization_url()
 
         Returns:
             True if successful, False otherwise
         """
-        data = {
+        base_data = {
             'grant_type': 'authorization_code',
             'code': authorization_code,
             'client_id': self.client_id,
             'client_secret': self.client_secret,
             'redirect_uri': self.redirect_uri,
-            'code_verifier': code_verifier
         }
+
+        data = dict(base_data)
+        if code_verifier:
+            data['code_verifier'] = code_verifier
 
         try:
             response = requests.post(self.TOKEN_URL, data=data, timeout=30)
-            response.raise_for_status()
+
+            if response.status_code >= 400 and code_verifier:
+                retry_data = dict(base_data)
+                retry_response = requests.post(self.TOKEN_URL, data=retry_data, timeout=30)
+                retry_response.raise_for_status()
+                response = retry_response
+            else:
+                response.raise_for_status()
 
             token_data = response.json()
 

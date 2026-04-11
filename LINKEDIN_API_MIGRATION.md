@@ -217,6 +217,10 @@ python -m src.orchestrator.skills.post_linkedin '{
 2. Check that the Client Secret doesn't have extra characters or prefixes
 3. Ensure your app has "Share on LinkedIn" product enabled
 4. Verify the redirect URI matches exactly: `http://localhost:8000/callback`
+5. Re-run setup using a fresh authorization code (`python scripts/setup_linkedin_api.py`)
+
+**Implementation Note:**
+The LinkedIn client now retries token exchange without `code_verifier` if the PKCE path is rejected by LinkedIn in your app configuration.
 
 ### "unauthorized_scope_error"
 
@@ -275,8 +279,9 @@ If you were using the Playwright version:
    ```
 
 2. **Update .env:**
-   - Replace `LINKEDIN_USERNAME` and `LINKEDIN_PASSWORD`
+   - Remove legacy `LINKEDIN_USERNAME` and `LINKEDIN_PASSWORD` if present
    - Add `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI`
+   - Add/confirm `LINKEDIN_TOKEN_PATH=./credentials/linkedin_api_token.json`
 
 3. **Authenticate:**
    ```bash
@@ -308,7 +313,7 @@ The message monitoring feature has been removed because it requires LinkedIn Par
 2. Script generates authorization URL with PKCE
 3. User visits URL and authorizes app
 4. LinkedIn redirects to localhost:8000/callback?code=...
-5. Script exchanges code for access token
+5. Script exchanges code for access token (with fallback retry without PKCE verifier when needed)
 6. Token saved to credentials/linkedin_api_token.json
 7. Token auto-refreshes when expired
 ```
@@ -355,5 +360,5 @@ The LinkedIn API integration fulfills this requirement:
 
 ---
 
-**Last Updated:** 2026-04-10  
-**Version:** Silver Tier v1.0
+**Last Updated:** 2026-04-11  
+**Version:** Silver Tier v1.1

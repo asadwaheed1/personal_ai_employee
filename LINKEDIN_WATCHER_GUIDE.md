@@ -1,238 +1,118 @@
-# LinkedIn Watcher Testing Guide
+# LinkedIn Watcher + API Testing Guide
 
 ## Overview
 
-The LinkedIn watcher monitors LinkedIn messages for keywords indicating business opportunities. Due to LinkedIn's strong anti-automation measures, initial setup requires manual intervention.
+The LinkedIn integration now uses the **official LinkedIn API** for authentication and posting.
+
+Current watcher behavior:
+- Checks content calendar entries
+- Creates approval requests for due posts
+- Works with the HITL flow (`Pending_Approval` → `Approved` → publish)
+
+> LinkedIn message monitoring is not supported with standard app access (requires LinkedIn Partner Program).
 
 ---
 
-## Known Challenges
+## Prerequisites
 
-LinkedIn has robust security measures that make browser automation difficult:
-
-1. **CAPTCHA Challenges** - Frequently triggered on automated logins
-2. **Email/Phone Verification** - May require verification code
-3. **Suspicious Activity Detection** - Browser automation is often detected
-4. **Session Expiration** - Sessions expire frequently requiring re-login
-
----
-
-## Current Implementation
-
-The LinkedIn watcher uses Playwright for browser automation with these features:
-
-- **Non-headless mode** - Browser window visible for manual intervention
-- **Session persistence** - Saves browser session to avoid repeated logins
-- **Extended timeouts** - 2-minute wait for manual verification
-- **Keyword monitoring** - Detects messages with: urgent, opportunity, partnership, meeting, invoice, payment
-
----
-
-## Testing Steps
-
-### 1. Prerequisites
+1. LinkedIn app configured at https://www.linkedin.com/developers/apps
+2. Products enabled:
+   - Share on LinkedIn
+   - Sign In with LinkedIn using OpenID Connect
+3. Redirect URI configured exactly:
+   - `http://localhost:8000/callback`
+4. `.env` values configured:
 
 ```bash
-# Ensure Playwright is installed
-pip install playwright
-playwright install chromium
-
-# Verify credentials in .env
-cat .env | grep LINKEDIN
+LINKEDIN_CLIENT_ID=your_client_id
+LINKEDIN_CLIENT_SECRET=your_client_secret
+LINKEDIN_REDIRECT_URI=http://localhost:8000/callback
+LINKEDIN_TOKEN_PATH=./credentials/linkedin_api_token.json
+LINKEDIN_CHECK_INTERVAL=300
 ```
 
-### 2. Run LinkedIn Watcher
+---
+
+## 1) Authenticate LinkedIn API
 
 ```bash
-# Run with visible browser
-python -m src.watchers.run_linkedin_watcher ./ai_employee_vault
+python scripts/setup_linkedin_api.py
 ```
 
-### 3. Manual Login Process
+Expected result:
+- OAuth completes successfully
+- Token file exists at `credentials/linkedin_api_token.json`
 
-When the browser opens:
+Verify:
 
-1. **Wait for login page** to load
-2. **Complete any CAPTCHA** if shown
-3. **Enter verification code** if requested (check email/phone)
-4. **Wait for redirect** to LinkedIn feed or messaging
-5. **Keep browser open** - watcher will continue monitoring
-
-### 4. Expected Behavior
-
-Once logged in successfully:
-
-- Watcher navigates to LinkedIn messaging
-- Checks for unread conversations every 5 minutes
-- Creates action files in `Needs_Action/` for messages with keywords
-- Logs activity to `Logs/linkedinwatcher_YYYY-MM-DD.log`
-
----
-
-## Action File Format
-
-When a message with keywords is detected:
-
-```markdown
----
-type: linkedin_message
-sender: John Doe
-detected_at: 2026-04-01T15:30:00
-timestamp: 2h ago
-priority: high
-keywords_matched: opportunity, meeting
-status: pending
-requires_approval: true
----
-
-# LinkedIn Message from John Doe
-
-## Message Preview
-> Hi, I have an exciting opportunity to discuss...
-
-## Detected Keywords
-- **opportunity**
-- **meeting**
-
-## Suggested Actions
-- [ ] Review full conversation on LinkedIn
-- [ ] Draft a response if needed
-- [ ] Check sender's profile for context
-- [ ] Mark as priority if business opportunity
-- [ ] Create task in project management if needed
+```bash
+ls -la credentials/linkedin_api_token.json
 ```
+
+---
+
+## 2) Validate Posting Skill (HITL)
+
+Create a post request:
+
+```bash
+python -m src.orchestrator.skills.post_linkedin '{
+  "action": "create_post",
+  "content": "Testing LinkedIn API posting workflow from Personal AI Employee."
+}'
+```
+
+Expected result:
+- Approval request file created in `ai_employee_vault/Pending_Approval/`
+
+Approve it:
+
+```bash
+mv ai_employee_vault/Pending_Approval/LINKEDIN_POST_*.md ai_employee_vault/Approved/
+```
+
+Then run orchestrator (or wait if already running) and confirm published output in logs.
+
+---
+
+## 3) Validate Watcher Calendar Flow
+
+1. Create a scheduled post via skill (`schedule_post` action).
+2. Run watcher or watcher manager.
+3. Confirm watcher creates approval request for due calendar item.
 
 ---
 
 ## Troubleshooting
 
-### Issue: Login Timeout
+### `invalid_client`
+- Confirm `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET` are correct and from same app.
+- Confirm redirect URI matches exactly: `http://localhost:8000/callback`.
+- Re-run auth with a fresh code:
+  ```bash
+  python scripts/setup_linkedin_api.py
+  ```
 
-**Symptom**: `LinkedIn login failed: Timeout exceeded`
+### Auth exchange inconsistent with PKCE
+- Client now supports fallback retry without `code_verifier` when required by app behavior.
+- Retry setup flow once with a fresh authorization code.
 
-**Solution**:
-- Increase timeout in `linkedin_watcher.py` (currently 120 seconds)
-- Complete CAPTCHA/verification faster
-- Try running during off-peak hours
-
-### Issue: Security Challenge
-
-**Symptom**: `LinkedIn security challenge detected`
-
-**Solution**:
-- Complete the challenge manually in the browser
-- Wait for the 2-minute timeout to allow completion
-- Session will be saved for future runs
-
-### Issue: Session Expired
-
-**Symptom**: Watcher keeps asking for login
-
-**Solution**:
+### Missing token file
 ```bash
-# Clear old session
-rm -rf credentials/linkedin_session
-
-# Run watcher again
-python -m src.watchers.run_linkedin_watcher ./ai_employee_vault
-```
-
-### Issue: Browser Not Opening
-
-**Symptom**: No browser window appears
-
-**Solution**:
-```bash
-# Check if running in WSL without display
-echo $DISPLAY
-
-# If empty, set display
-export DISPLAY=:0
-
-# Or run in headless mode (won't help with CAPTCHA)
-# Edit linkedin_watcher.py: headless=True
+python scripts/setup_linkedin_api.py
+ls -la credentials/linkedin_api_token.json
 ```
 
 ---
 
-## Alternative: LinkedIn API
+## Recommended Regression Checks
 
-For production use, consider using LinkedIn's official API instead of browser automation:
-
-### Advantages
-- No CAPTCHA challenges
-- More reliable
-- Better rate limits
-- Official support
-
-### Setup
-1. Create LinkedIn App at https://www.linkedin.com/developers/apps
-2. Get OAuth credentials
-3. Implement OAuth flow
-4. Use LinkedIn Messaging API
-
-### Implementation Notes
-- Requires LinkedIn API access (may need approval)
-- OAuth flow more complex but more reliable
-- Better for long-term production use
+- Auth setup succeeds and token persists
+- Post creation request generates approval file
+- Approved request publishes successfully
+- Watcher/calendar check creates due approval requests
 
 ---
 
-## Current Status
-
-**Implementation**: ✅ Complete  
-**Testing**: 🔄 In Progress  
-**Production Ready**: ⚠️ Requires manual login intervention
-
-**Recommendation**: 
-- For Silver Tier demo: Current implementation works with manual setup
-- For Gold Tier production: Migrate to LinkedIn API with OAuth
-
----
-
-## Configuration
-
-Edit `.env` file:
-
-```bash
-# LinkedIn credentials
-LINKEDIN_USERNAME=your_email@example.com
-LINKEDIN_PASSWORD=your_password
-
-# Session storage
-LINKEDIN_SESSION_PATH=./credentials/linkedin_session
-
-# Check interval (seconds)
-LINKEDIN_CHECK_INTERVAL=300
-
-# Keywords to monitor (comma-separated)
-LINKEDIN_KEYWORDS=urgent,opportunity,partnership,meeting,invoice,payment
-```
-
----
-
-## Logs
-
-Monitor watcher activity:
-
-```bash
-# View real-time logs
-tail -f ai_employee_vault/Logs/linkedinwatcher_2026-04-01.log
-
-# Check for errors
-grep ERROR ai_employee_vault/Logs/linkedinwatcher_*.log
-```
-
----
-
-## Next Steps
-
-1. **Manual Testing**: Run watcher and complete login manually
-2. **Message Testing**: Send test message with keywords to yourself
-3. **Action File Verification**: Check `Needs_Action/` for created files
-4. **Multi-Watcher**: Test running Gmail + LinkedIn watchers simultaneously
-5. **Production Planning**: Consider LinkedIn API migration for Gold Tier
-
----
-
-**Last Updated**: 2026-04-01
+**Last Updated:** 2026-04-11
+**Status:** API-first workflow active

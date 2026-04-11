@@ -47,9 +47,11 @@ Add the following to `.env`:
 GMAIL_CREDENTIALS_PATH=credentials/gmail_credentials.json
 GMAIL_TOKEN_PATH=credentials/gmail_token.json
 
-# LinkedIn Configuration (optional)
-LINKEDIN_EMAIL=your-email@example.com
-LINKEDIN_PASSWORD=your-password
+# LinkedIn Configuration (official API)
+LINKEDIN_CLIENT_ID=your_linkedin_client_id
+LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
+LINKEDIN_REDIRECT_URI=http://localhost:8000/callback
+LINKEDIN_TOKEN_PATH=./credentials/linkedin_api_token.json
 
 # System Configuration
 DRY_RUN=false
@@ -140,7 +142,16 @@ python -m src.watchers.run_gmail_watcher ./ai_employee_vault
 # Token will be saved to credentials/gmail_token.json
 ```
 
-### 8. Test the System
+### 8. Setup LinkedIn API Authentication (First Time Only)
+
+```bash
+python scripts/setup_linkedin_api.py
+```
+
+Follow the prompts to complete OAuth. On success, token is saved to:
+`credentials/linkedin_api_token.json`
+
+### 9. Test the System
 
 #### Test 1: File Processing (Bronze Tier)
 
@@ -212,7 +223,7 @@ python src/orchestrator/mcp_processor.py ./ai_employee_vault
 ls -la ai_employee_vault/Done/EXECUTED_MCP_*.json
 ```
 
-### 9. Monitor the System
+### 10. Monitor the System
 
 ```bash
 # Watch orchestrator logs
@@ -231,7 +242,7 @@ tail -f ai_employee_vault/Logs/watcher_manager_$(date +%Y-%m-%d).log
 cat ai_employee_vault/Dashboard.md
 ```
 
-### 10. Verify Processing
+### 11. Verify Processing
 
 After 30-60 seconds, check:
 
@@ -252,7 +263,7 @@ ls ai_employee_vault/Done/EXECUTED_MCP_*.json
 cat ai_employee_vault/Dashboard.md
 ```
 
-### 11. Setup Scheduling (Optional)
+### 12. Setup Scheduling (Optional)
 
 ```bash
 # Linux/Mac
@@ -479,18 +490,20 @@ rm ai_employee_vault/.state/*.json
 ./stop.sh && ./start.sh
 ```
 
-### Problem: LinkedIn watcher fails
+### Problem: LinkedIn API auth/post fails
 
 ```bash
-# LinkedIn has strong anti-automation measures
-# Check logs for security challenges
-tail -50 ai_employee_vault/Logs/linkedin_watcher_$(date +%Y-%m-%d).log
+# Check token exists
+ls -la credentials/linkedin_api_token.json
 
-# Run in non-headless mode for manual intervention
-# Edit src/watchers/linkedin_watcher.py: headless=False
+# Re-run LinkedIn OAuth setup
+python scripts/setup_linkedin_api.py
 
-# Consider using LinkedIn API instead for production
-```
+# If token exchange fails, verify app config in LinkedIn Developers:
+# - Products: "Share on LinkedIn" and "Sign In with LinkedIn using OpenID Connect"
+# - Redirect URI: http://localhost:8000/callback
+# - Correct LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET in .env
+```'}ոբ careful quote end JSON invalid due single quote. Need resend correctly. We'll retry whole edit maybe tool call failed? let's see. +#+#+#+#+#+assistant to=functions.Edit մեկնաբանություն 买天天中彩票json  იქნებ{
 
 ## Configuration
 
@@ -565,7 +578,7 @@ cat ~/.config/claude/mcp_servers.json
 
 1. **Customize the handbook** with your specific rules
 2. **Test with real emails** - send test emails to monitored account
-3. **Test LinkedIn monitoring** - send test messages with keywords
+3. **Test LinkedIn posting workflow** - create, approve, and verify a published post
 4. **Monitor for a few days** to ensure stability
 5. **Setup scheduling** for automated tasks
 6. **Review MCP actions** to understand external integrations
@@ -575,7 +588,7 @@ cat ~/.config/claude/mcp_servers.json
 ### Active Watchers
 - **Filesystem Watcher**: Monitors Inbox for dropped files
 - **Gmail Watcher**: Monitors unread emails, creates action files
-- **LinkedIn Watcher**: Monitors messages for business opportunities
+- **LinkedIn Watcher**: Checks content calendar and creates posting approval requests
 
 ### Email Processing
 - Mark as read
@@ -617,7 +630,7 @@ cat ~/.config/claude/mcp_servers.json
 - [ ] Watcher Manager starts all watchers
 - [ ] Files dropped in Inbox are detected
 - [ ] Gmail watcher detects new emails (if configured)
-- [ ] LinkedIn watcher monitors messages (if configured)
+- [ ] LinkedIn OAuth token exists at credentials/linkedin_api_token.json
 - [ ] Metadata files created in Needs_Action
 - [ ] Orchestrator processes files
 - [ ] MCP actions execute successfully

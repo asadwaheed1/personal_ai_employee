@@ -32,7 +32,7 @@ The Personal AI Employee is a three-tier automation system designed to handle pe
 
 ### New Silver Tier Features
 - ✅ **Gmail Integration** - Automatic email monitoring and processing
-- ✅ **LinkedIn Automation** - Message monitoring and automated posting
+- ✅ **LinkedIn Automation** - Official API posting with OAuth 2.0 token management and approval workflow
 - ✅ **MCP Server Integration** - Gmail MCP server for external actions
 - ✅ **Email Processing Workflow** - Mark as read, archive, reply, delete
 - ✅ **Multi-Watcher System** - Simultaneous monitoring of multiple sources
@@ -66,7 +66,7 @@ cd personal_ai_employee
 
 # Install additional Silver Tier dependencies
 pip install -r requirements.txt
-playwright install
+playwright install  # optional for legacy/manual browser workflows
 
 # Configure environment variables
 cp .env.example .env
@@ -76,6 +76,10 @@ cp .env.example .env
 # 1. Go to https://console.cloud.google.com/apis/credentials
 # 2. Create OAuth 2.0 credentials
 # 3. Download and save as credentials/gmail_credentials.json
+
+# Setup LinkedIn API OAuth
+python scripts/setup_linkedin_api.py
+# Token saved to credentials/linkedin_api_token.json
 
 # Setup scheduling (optional)
 ./scripts/setup_cron.sh  # Linux/Mac
@@ -144,7 +148,7 @@ personal_ai_employee/
 │   ├── watchers/
 │   │   ├── gmail_watcher.py       # Gmail monitoring
 │   │   ├── run_gmail_watcher.py   # Gmail watcher entry point
-│   │   ├── linkedin_watcher.py    # LinkedIn monitoring
+│   │   ├── linkedin_watcher.py    # LinkedIn calendar/check automation
 │   │   └── run_linkedin_watcher.py # LinkedIn watcher entry point
 │   │
 │   └── orchestrator/
@@ -192,6 +196,7 @@ personal_ai_employee/
 | **[SILVER_TIER_DEMO.md](SILVER_TIER_DEMO.md)** | Complete demo results |
 | **[EMAIL_WORKFLOW_GUIDE.md](EMAIL_WORKFLOW_GUIDE.md)** | Email processing workflow |
 | **[EMAIL_ACTIONS_GUIDE.md](EMAIL_ACTIONS_GUIDE.md)** | Email actions quick reference |
+| **[LINKEDIN_SETUP_QUICK_REF.md](LINKEDIN_SETUP_QUICK_REF.md)** | LinkedIn OAuth/API setup quick reference |
 | **[LINKEDIN_WATCHER_GUIDE.md](LINKEDIN_WATCHER_GUIDE.md)** | LinkedIn watcher guide |
 | **[BRONZE_TIER_DOCS.md](BRONZE_TIER_DOCS.md)** | Bronze Tier technical docs |
 | **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** | System quick reference |
@@ -359,7 +364,7 @@ See [BRONZE_TIER_DOCS.md](BRONZE_TIER_DOCS.md) for complete troubleshooting guid
 
 ### ✅ Silver Tier (Complete)
 - Gmail integration with MCP server
-- LinkedIn monitoring and posting
+- LinkedIn API posting and calendar-driven automation
 - Email processing workflow (mark read, archive, reply, delete)
 - Multi-watcher system
 - Content calendar automation

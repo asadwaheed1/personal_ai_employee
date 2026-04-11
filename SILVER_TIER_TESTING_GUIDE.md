@@ -1,7 +1,7 @@
 # Silver Tier Testing Guide
 
-**Date**: 2026-04-02
-**Status**: Ready for Testing
+**Date**: 2026-04-11
+**Status**: Ready for Testing (LinkedIn API Auth Validated)
 **Branch**: silver-imp
 
 ---
@@ -40,6 +40,9 @@ cat .env | grep -E "GMAIL|LINKEDIN"
 ls -la credentials/gmail_credentials.json
 ls -la credentials/gmail_token.json
 
+# Verify LinkedIn token (after OAuth setup)
+ls -la credentials/linkedin_api_token.json
+
 # Verify vault structure
 ls -la ai_employee_vault/
 ```
@@ -47,6 +50,42 @@ ls -la ai_employee_vault/
 ---
 
 ## 🧪 Test Suite
+
+### Test 0: LinkedIn OAuth + API Posting Sanity Check
+
+**Objective**: Verify LinkedIn OAuth and posting path is operational before broader test suite.
+
+**Steps**:
+
+1. Run LinkedIn OAuth setup:
+```bash
+python scripts/setup_linkedin_api.py
+```
+
+2. Verify token file exists:
+```bash
+ls -la credentials/linkedin_api_token.json
+```
+
+3. Create a LinkedIn post request (approval workflow):
+```bash
+python -m src.orchestrator.skills.post_linkedin '{
+  "action": "create_post",
+  "content": "Silver Tier test post via LinkedIn API workflow"
+}'
+```
+
+4. Verify approval request created:
+```bash
+ls -la ai_employee_vault/Pending_Approval/LINKEDIN_POST_*.md
+```
+
+**Expected Result**:
+- OAuth completes and token persists to `credentials/linkedin_api_token.json`
+- Post request file appears in `Pending_Approval/`
+- No authentication errors in logs
+
+---
 
 ### Test 1: MCP Processor - Basic Functionality
 
