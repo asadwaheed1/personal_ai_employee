@@ -16,7 +16,7 @@
 | Orchestrator | ✅ Complete | Handles Inbox/Needs_Action/Approved/MCP actions |
 | MCP Processing | ✅ Complete | External email actions executed via MCP workflow |
 | HITL Approval | ✅ Complete | Pending_Approval → Approved/Rejected path |
-| Scheduling | ✅ Complete | Cron/Task Scheduler scripts provided |
+| Scheduling | ✅ Complete | Cron installed + scheduled commands smoke-tested |
 | Edge Cases | ✅ Complete | Retry logic, validation, lock cleanup, restart limits |
 | Documentation | ✅ Updated | Core setup/testing docs aligned to API-first flow |
 
@@ -29,6 +29,22 @@
 3. Token persisted to `credentials/linkedin_api_token.json`.
 4. Published successful live LinkedIn post via API:
    - `https://www.linkedin.com/feed/update/7448701105603006464`
+5. Fixed scheduled skill invocation reliability:
+   - Updated skill imports to support `python -m` execution in `create_content_plan.py`, `process_approved_actions.py`, and `post_linkedin.py`.
+   - Added required `vault_path` payloads in `scripts/setup_cron.sh` and `scripts/setup_task_scheduler.ps1`.
+6. Validated scheduled commands manually on Linux (venv Python):
+   - `create_content_plan` ✅
+   - `process_approved_actions` ✅
+   - `dashboard_update.py` ✅
+7. Installed and verified active Linux cron entries (`crontab -l`), and switched runtime startup flow to watcher_manager (`start.sh`/`stop.sh`) so filesystem + Gmail + LinkedIn watchers run together.
+8. **Completed full end-to-end drill with live Gmail MCP execution (2026-04-11 evening)**:
+   - Configured Gmail MCP server (`@dev-hitesh-gupta/gmail-mcp-server`) at project level
+   - Authenticated Gmail MCP via OAuth (credentials stored in `~/.gmail-mcp`)
+   - Executed live test: mark read + archive on message `19d7d5c92e70f76b`
+   - Verified actual Gmail state changes via MCP
+   - Sent live reply to message `19d7d4bf130b8546` from `mrasadwaheed@gmail.com`
+   - Patched `process_email_actions.py` metrics to show "queued" instead of misleading "successful" counts
+   - All 3 watchers confirmed running (filesystem, Gmail, LinkedIn)
 
 ---
 
@@ -78,37 +94,46 @@
 - Approval-gated publishing through vault folders
 
 ### System Management
-- Multi-watcher lifecycle management
+- Multi-watcher lifecycle management (watcher_manager for filesystem + Gmail + LinkedIn)
 - Restart limits + stale lock cleanup
 - Logging and dashboard update support
-- Scheduled jobs support on Linux/macOS/Windows
+- Legacy dashboard static watcher lines auto-cleaned; live status shown in `## Watcher Status`
+- Scheduled jobs support on Linux/macOS/Windows (cron active on Linux)
 
 ---
 
 ## ⚠️ Known Constraints
 
 1. LinkedIn direct message monitoring is not supported for standard app access (requires LinkedIn Partner Program).
-2. Scheduled jobs must still be validated in runtime environment after install (cron/task scheduler execution checks).
+2. Windows Task Scheduler flow is not yet re-validated after Linux-side scheduler fixes (cron is validated and active).
 
 ---
 
 ## 📋 Next Steps (Prioritized)
 
-1. **Scheduling validation**
-   - Verify cron/Task Scheduler jobs execute and produce expected logs/artifacts.
+1. **HITL path re-validation for sensitive emails**
+   - Run one strict HITL scenario end-to-end: Gmail input → `Pending_Approval` → move to `Approved` → MCP execution.
+   - Confirm no direct execution occurs before approval for sensitive/reply actions.
 
-2. **Full end-to-end drill**
-   - Run one complete scenario: Gmail input → HITL approval → execution → dashboard/log verification.
+2. **Dashboard truthfulness improvement (MCP final state)**
+   - Extend dashboard update to reflect final MCP execution outcomes (from `Done/EXECUTED_MCP_*.json`), not only queue-time status.
+   - Keep queue-time and execution-time metrics clearly separated.
 
 3. **LinkedIn regression checks**
    - Add/maintain tests for auth exchange path (including no-`code_verifier` fallback behavior).
+   - Add smoke test for token refresh behavior in long-running flow.
 
 4. **Cleanup + hardening**
    - Remove temporary auth artifacts (e.g., `credentials/linkedin_pkce_verifier.txt`) after confirmation.
-   - Confirm token refresh behavior in long-running flow.
+   - Add a startup preflight check that validates Gmail MCP authentication before watcher startup.
 
-5. **Documentation maintenance**
+5. **Windows scheduler parity check**
+   - Re-validate `scripts/setup_task_scheduler.ps1` execution path after payload updates.
+
+6. **Documentation maintenance**
+   - Update docs to include project-level Gmail MCP setup/auth path caveat and verification commands.
    - Keep API-first LinkedIn guidance consistent across quickstart/testing/reference docs.
+   - Ensure startup docs reference watcher_manager-based `start.sh`/`stop.sh` behavior.
 
 ---
 

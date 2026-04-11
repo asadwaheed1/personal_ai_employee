@@ -13,3 +13,4 @@ env/
 .DS_Store
 *.log
 credentials/
+graphify-out/

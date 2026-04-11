@@ -272,6 +272,11 @@ class WatcherManager:
             content = dashboard_path.read_text()
             status = self.get_status()
 
+            # Remove legacy static watcher lines from older dashboard templates
+            import re
+            content = re.sub(r'^-\s*[🟢🟡🔴]\s*Gmail Watcher:.*\n?', '', content, flags=re.MULTILINE)
+            content = re.sub(r'^-\s*[🟢🟡🔴]\s*LinkedIn Watcher:.*\n?', '', content, flags=re.MULTILINE)
+
             # Create watcher status section
             watcher_section = "\n## Watcher Status\n\n"
             watcher_section += "| Watcher | Status | PID | Uptime | Restarts |\n"

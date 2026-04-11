@@ -1,7 +1,7 @@
 # Company Handbook - AI Employee Rules of Engagement
 
 ## Last Updated
-$(date +%Y-%m-%d)
+2026-04-10
 
 ## Core Principles
 
@@ -50,40 +50,3 @@ Always require human approval for:
 | Financial transaction ≥ $50 | | ✓ |
 | Social media post | | ✓ |
 | Delete files | | ✓ |
-
-## Response Templates
-
-### Email Reply Template
-```
-Subject: Re: [Original Subject]
-
-Dear [Name],
-
-[Response content]
-
-Best regards,
-[Your Name]
-
----
-This email was drafted with AI assistance.
-```
-
-### Approval Request Template
-```
----
-type: approval_request
-action: [action_type]
-priority: [high/medium/low]
-created: [timestamp]
-expires: [timestamp]
----
-
-## Action Details
-[Detailed description]
-
-## To Approve
-Move this file to /Approved/
-
-## To Reject
-Move this file to /Rejected/
-```

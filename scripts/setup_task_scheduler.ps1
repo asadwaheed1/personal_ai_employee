@@ -45,19 +45,19 @@ $tasks = @(
         Name = "AIEmployee_ContentCalendar_Check"
         Description = "Check content calendar for due posts (hourly)"
         Trigger = New-ScheduledTaskTrigger -Daily -At "00:00" -RepetitionInterval (New-TimeSpan -Hours 1) -RepetitionDuration (New-TimeSpan -Days 1)
-        Action = New-ScheduledTaskAction -Execute $pythonPath -Argument "-m src.orchestrator.skills.create_content_plan '{`"action`": `"check_calendar`"}'" -WorkingDirectory $projectDir
+        Action = New-ScheduledTaskAction -Execute $pythonPath -Argument "-m src.orchestrator.skills.create_content_plan '{`"action`": `"check_calendar`", `"vault_path`": `"$vaultPath`"}'" -WorkingDirectory $projectDir
     },
     @{
         Name = "AIEmployee_Linkedin_Post"
         Description = "Daily LinkedIn post at 9:00 AM (weekdays only)"
         Trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At "09:00"
-        Action = New-ScheduledTaskAction -Execute $pythonPath -Argument "-m src.orchestrator.skills.post_linkedin '{`"action`": `"check_calendar`"}'" -WorkingDirectory $projectDir
+        Action = New-ScheduledTaskAction -Execute $pythonPath -Argument "-m src.orchestrator.skills.post_linkedin '{`"action`": `"check_calendar`", `"vault_path`": `"$vaultPath`"}'" -WorkingDirectory $projectDir
     },
     @{
         Name = "AIEmployee_Weekly_Content_Plan"
         Description = "Weekly content planning (Sundays at 6:00 PM)"
         Trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At "18:00"
-        Action = New-ScheduledTaskAction -Execute $pythonPath -Argument "-m src.orchestrator.skills.create_content_plan '{`"num_posts`": 5}'" -WorkingDirectory $projectDir
+        Action = New-ScheduledTaskAction -Execute $pythonPath -Argument "-m src.orchestrator.skills.create_content_plan '{`"num_posts`": 5, `"vault_path`": `"$vaultPath`"}'" -WorkingDirectory $projectDir
     },
     @{
         Name = "AIEmployee_Process_Approved"

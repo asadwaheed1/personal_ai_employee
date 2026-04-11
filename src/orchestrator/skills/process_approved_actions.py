@@ -10,7 +10,10 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any
 
-from base_skill import BaseSkill, run_skill
+try:
+    from .base_skill import BaseSkill, run_skill
+except ImportError:
+    from base_skill import BaseSkill, run_skill
 
 
 class ProcessApprovedActionsSkill(BaseSkill):

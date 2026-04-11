@@ -45,15 +45,15 @@ VAULT_PATH=$VAULT_PATH
 
 # Daily content calendar check (run every hour)
 # This checks if any posts are due and creates approval requests
-0 * * * * cd \"$PROJECT_DIR\" && $PYTHON_PATH -m src.orchestrator.skills.create_content_plan '{\"action\": \"check_calendar\"}' >> \"$VAULT_PATH/Logs/calendar_cron.log\" 2>&1
+0 * * * * cd \"$PROJECT_DIR\" && $PYTHON_PATH -m src.orchestrator.skills.create_content_plan '{\"action\": \"check_calendar\", \"vault_path\": \"$VAULT_PATH\"}' >> \"$VAULT_PATH/Logs/calendar_cron.log\" 2>&1
 
 # Daily LinkedIn post at 9:00 AM (only on weekdays)
 # Posts business content to generate sales
-0 9 * * 1-5 cd \"$PROJECT_DIR\" && $PYTHON_PATH -m src.orchestrator.skills.post_linkedin '{\"action\": \"check_calendar\"}' >> \"$VAULT_PATH/Logs/linkedin_cron.log\" 2>&1
+0 9 * * 1-5 cd \"$PROJECT_DIR\" && $PYTHON_PATH -m src.orchestrator.skills.post_linkedin '{\"action\": \"check_calendar\", \"vault_path\": \"$VAULT_PATH\"}' >> \"$VAULT_PATH/Logs/linkedin_cron.log\" 2>&1
 
 # Weekly content planning (Sundays at 6:00 PM)
 # Generates content calendar for the upcoming week
-0 18 * * 0 cd \"$PROJECT_DIR\" && $PYTHON_PATH -m src.orchestrator.skills.create_content_plan '{\"num_posts\": 5}' >> \"$VAULT_PATH/Logs/content_plan_cron.log\" 2>&1
+0 18 * * 0 cd \"$PROJECT_DIR\" && $PYTHON_PATH -m src.orchestrator.skills.create_content_plan '{\"num_posts\": 5, \"vault_path\": \"$VAULT_PATH\"}' >> \"$VAULT_PATH/Logs/content_plan_cron.log\" 2>&1
 
 # Process approved actions every 15 minutes
 # Checks /Approved/ folder and executes actions

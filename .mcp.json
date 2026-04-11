@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "gmail": {
+      "command": "npx",
+      "args": ["-y", "@dev-hitesh-gupta/gmail-mcp-server"],
+      "env": {
+        "GMAIL_CREDENTIALS_PATH": "/home/asad/piaic/projects/personal_ai_employee/credentials/gmail_credentials.json",
+        "GMAIL_TOKEN_PATH": "/home/asad/piaic/projects/personal_ai_employee/credentials/gmail_token.json"
+      }
+    }
+  }
+}

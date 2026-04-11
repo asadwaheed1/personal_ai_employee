@@ -20,8 +20,12 @@ import sys
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
-from base_skill import BaseSkill, run_skill
-from linkedin_api_client import LinkedInAPIClient
+try:
+    from .base_skill import BaseSkill, run_skill
+    from .linkedin_api_client import LinkedInAPIClient
+except ImportError:
+    from base_skill import BaseSkill, run_skill
+    from linkedin_api_client import LinkedInAPIClient
 
 
 class PostLinkedInSkill(BaseSkill):

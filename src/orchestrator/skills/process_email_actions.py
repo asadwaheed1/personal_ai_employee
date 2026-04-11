@@ -71,11 +71,14 @@ class ProcessEmailActionsSkill(BaseSkill):
         # Update dashboard
         self._update_dashboard(email_data, actions, results)
 
+        queued_count = len([r for r in results if r['status'] in ('mcp_action_created', 'success')])
+        failed_count = len([r for r in results if r['status'] == 'failed'])
+
         return {
             "success": True,
             "message_id": message_id,
-            "actions_executed": len([r for r in results if r['status'] == 'success']),
-            "actions_failed": len([r for r in results if r['status'] == 'failed']),
+            "actions_queued": queued_count,
+            "actions_failed": failed_count,
             "results": results
         }
 
@@ -534,7 +537,7 @@ class ProcessEmailActionsSkill(BaseSkill):
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
         action_summary = ', '.join(actions) if actions else 'No actions'
 
-        success_count = len([r for r in results if r['status'] == 'success'])
+        queued_count = len([r for r in results if r['status'] in ('mcp_action_created', 'success')])
         failed_count = len([r for r in results if r['status'] == 'failed'])
 
         summary = f"""
@@ -543,8 +546,8 @@ class ProcessEmailActionsSkill(BaseSkill):
 ## Execution Summary
 **Executed**: {timestamp}
 **Actions Requested**: {action_summary}
-**Successful**: {success_count}
-**Failed**: {failed_count}
+**Queued for MCP Execution**: {queued_count}
+**Failed to Queue**: {failed_count}
 
 ### Action Results
 ```json
@@ -573,14 +576,14 @@ class ProcessEmailActionsSkill(BaseSkill):
 
         # Add summary
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
-        success_count = len([r for r in results if r['status'] == 'success'])
+        queued_count = len([r for r in results if r['status'] in ('mcp_action_created', 'success')])
 
         summary = f"""
 
 ---
 ## Completion Summary
 **Completed**: {timestamp}
-**Actions Successful**: {success_count}
+**Actions Queued for MCP**: {queued_count}
 **Status**: Done
 """
 
@@ -602,11 +605,12 @@ class ProcessEmailActionsSkill(BaseSkill):
         try:
             subject = email_data.get('subject', 'Unknown')[:40]
             action_names = ', '.join(actions)
-            successful = len([r for r in results if r['status'] == 'success'])
+            queued = len([r for r in results if r['status'] in ('mcp_action_created', 'success')])
+            failed = len([r for r in results if r['status'] == 'failed'])
 
             dashboard_skill = UpdateDashboardSkill(str(self.vault_path))
             dashboard_skill.execute({
-                'summary': f"Processed email '{subject}': {action_names} ({successful}/{len(actions)} successful)"
+                'summary': f"Processed email '{subject}': {action_names} ({queued}/{len(actions)} queued, {failed} failed to queue)"
             })
         except Exception as e:
             self.logger.warning(f"Failed to update dashboard: {e}")
