@@ -147,6 +147,10 @@ class WatcherManager:
         self.logger = self._setup_logging()
         self.running = False
 
+        # Initialize orchestrator for processing files
+        from .orchestrator import Orchestrator
+        self.orchestrator = Orchestrator(str(vault_path), check_interval=30)
+
     def _setup_logging(self) -> logging.Logger:
         """Setup logging"""
         log_dir = self.vault_path / 'Logs'
@@ -227,10 +231,36 @@ class WatcherManager:
 
         state_path.write_text(json.dumps(state, indent=2))
 
+    def run_startup_preflight(self) -> bool:
+        """Run startup preflight checks before entering monitoring loop."""
+        self.logger.info('Running startup preflight checks...')
+
+        try:
+            gmail_preflight = self.orchestrator.mcp_processor.validate_gmail_mcp_auth()
+            if not gmail_preflight.get('success', False):
+                error_msg = gmail_preflight.get('error') or gmail_preflight.get('output') or 'Unknown Gmail MCP auth error'
+                self.logger.error('❌ STARTUP PREFLIGHT FAILED: Gmail MCP authentication check failed')
+                self.logger.error(f'Gmail MCP preflight error: {error_msg}')
+                self.logger.error('Action required: Re-authenticate Gmail MCP before startup (token refresh failing).')
+                return False
+
+            self.logger.info('✅ Startup preflight passed: Gmail MCP authentication healthy')
+            return True
+
+        except Exception as e:
+            self.logger.error(f'❌ STARTUP PREFLIGHT FAILED with exception: {e}', exc_info=True)
+            return False
+
     def run_monitoring_loop(self, check_interval: int = 30):
         """Main monitoring loop"""
         self.running = True
         self.logger.info("Watcher Manager monitoring loop started")
+
+        if not self.run_startup_preflight():
+            self.logger.error('Startup aborted due to preflight failure')
+            self.running = False
+            self.stop_all()
+            return
 
         def signal_handler(signum, frame):
             self.logger.info("Received shutdown signal")
@@ -241,11 +271,17 @@ class WatcherManager:
 
         try:
             while self.running:
-                # Health check and auto-restart
+                # Health check and auto-restart watchers
                 failed = self.health_check()
                 if failed:
                     self.logger.info(f"Found {len(failed)} failed watchers, auto-restarting...")
                     self.auto_restart_failed()
+
+                # Run orchestrator to process files
+                try:
+                    self.orchestrator.check_and_trigger()
+                except Exception as e:
+                    self.logger.error(f"Orchestrator error: {e}", exc_info=True)
 
                 # Save state
                 self.save_state()

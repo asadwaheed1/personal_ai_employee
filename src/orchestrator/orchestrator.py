@@ -18,7 +18,7 @@ import fcntl
 import sys
 
 # Import MCP processor for Silver Tier
-from mcp_processor import MCPProcessor
+from .mcp_processor import MCPProcessor
 
 
 class Orchestrator:
@@ -237,8 +237,53 @@ All files have been processed and moved to appropriate folders.
             return True
 
         self.logger.info(f'Processing {len(files)} files in Needs_Action')
-        context = f'Process {len(files)} new items in /Needs_Action/ folder and update Dashboard.md'
+
+        # Auto-process newsletter/promotional emails first
+        email_files = [f for f in files if f.name.startswith('EMAIL_') and f.suffix == '.md']
+        if email_files:
+            self.logger.info(f'Auto-processing {len(email_files)} email files')
+            self._auto_process_emails()
+
+        # Only trigger Claude for non-email markdown tasks.
+        # Important emails stay in Needs_Action for human review.
+        remaining_non_email = [
+            f for f in self.needs_action.glob('*.md')
+            if not f.name.startswith('EMAIL_') and not f.name.startswith('.')
+        ]
+
+        if not remaining_non_email:
+            self.logger.info('No non-email Needs_Action files to process')
+            return True
+
+        context = f'Process {len(remaining_non_email)} non-email items in /Needs_Action/ folder and update Dashboard.md'
         return self._trigger_claude_processing(context)
+
+    def _auto_process_emails(self) -> bool:
+        """Auto-process newsletter/promotional emails"""
+        try:
+            import subprocess
+            import sys
+
+            skill_path = Path(__file__).parent / 'skills' / 'auto_process_emails.py'
+
+            result = subprocess.run(
+                [sys.executable, str(skill_path), json.dumps({'vault_path': str(self.vault_path)})],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=str(self.vault_path.parent)
+            )
+
+            if result.returncode == 0:
+                self.logger.info('Auto-processing completed successfully')
+                return True
+            else:
+                self.logger.error(f'Auto-processing failed: {result.stderr}')
+                return False
+
+        except Exception as e:
+            self.logger.error(f'Error in auto-processing: {e}', exc_info=True)
+            return False
 
     def _process_mcp_actions(self, files: List[Path]) -> bool:
         """
@@ -269,13 +314,69 @@ All files have been processed and moved to appropriate folders.
             return False
 
     def _process_approved(self, files: List[Path]) -> bool:
-        """Process approved actions"""
+        """Process approved actions by executing email actions directly"""
         if not files:
             return True
 
         self.logger.info(f'Executing {len(files)} approved actions')
-        context = f'Execute {len(files)} approved actions from /Approved/ folder'
-        return self._trigger_claude_processing(context)
+
+        success_count = 0
+        for file_path in files:
+            try:
+                # Check if it's an email file
+                content = file_path.read_text()
+                if 'type: email' in content and 'message_id:' in content:
+                    # Execute email actions directly via skill
+                    self.logger.info(f'Processing approved email: {file_path.name}')
+                    result = self._execute_email_actions(file_path)
+                    if result:
+                        success_count += 1
+                else:
+                    # For non-email files, use generic Claude processing
+                    self.logger.info(f'Processing approved file (non-email): {file_path.name}')
+                    context = f'Execute approved action from {file_path.name}'
+                    if self._trigger_claude_processing(context):
+                        success_count += 1
+
+            except Exception as e:
+                self.logger.error(f'Failed to process approved file {file_path.name}: {e}', exc_info=True)
+
+        self.logger.info(f'Approved actions: {success_count}/{len(files)} successful')
+        return success_count > 0
+
+    def _execute_email_actions(self, email_file: Path) -> bool:
+        """Execute email actions from approved email file"""
+        try:
+            import subprocess
+            import sys
+
+            # Call process_email_actions skill directly
+            skill_path = Path(__file__).parent / 'skills' / 'process_email_actions.py'
+
+            params = {
+                'email_file': str(email_file),
+                'vault_path': str(self.vault_path)
+            }
+
+            result = subprocess.run(
+                [sys.executable, str(skill_path), json.dumps(params)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                cwd=str(self.vault_path.parent)
+            )
+
+            if result.returncode == 0:
+                self.logger.info(f'Email actions executed successfully for {email_file.name}')
+                # process_email_actions skill archives file to Done itself.
+                return True
+            else:
+                self.logger.error(f'Email action execution failed: {result.stderr}')
+                return False
+
+        except Exception as e:
+            self.logger.error(f'Error executing email actions: {e}', exc_info=True)
+            return False
 
     def _process_inbox(self, files: List[Path]) -> bool:
         """Process files in Inbox folder"""

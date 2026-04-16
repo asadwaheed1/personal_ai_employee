@@ -1,9 +1,9 @@
 # Personal AI Employee - Project Status
 
-**Last Updated:** 2026-04-11  
+**Last Updated:** 2026-04-16  
 **Current Branch:** silver-imp  
 **Target Tier:** Silver  
-**Overall Status:** ✅ Silver requirements complete, LinkedIn OAuth + live API posting validated
+**Overall Status:** ✅ Silver requirements complete; runtime hardened with watcher-manager orchestrator integration + Gmail MCP startup preflight validation (pass) on current token.
 
 ---
 
@@ -22,29 +22,21 @@
 
 ---
 
-## ✅ Latest Confirmed Outcomes (2026-04-11)
+## ✅ Latest Confirmed Outcomes (2026-04-16)
 
-1. Fixed LinkedIn token exchange reliability in `src/orchestrator/skills/linkedin_api_client.py` by adding fallback retry without `code_verifier` when needed.
-2. Completed LinkedIn OAuth successfully.
-3. Token persisted to `credentials/linkedin_api_token.json`.
-4. Published successful live LinkedIn post via API:
-   - `https://www.linkedin.com/feed/update/7448701105603006464`
-5. Fixed scheduled skill invocation reliability:
-   - Updated skill imports to support `python -m` execution in `create_content_plan.py`, `process_approved_actions.py`, and `post_linkedin.py`.
-   - Added required `vault_path` payloads in `scripts/setup_cron.sh` and `scripts/setup_task_scheduler.ps1`.
-6. Validated scheduled commands manually on Linux (venv Python):
-   - `create_content_plan` ✅
-   - `process_approved_actions` ✅
-   - `dashboard_update.py` ✅
-7. Installed and verified active Linux cron entries (`crontab -l`), and switched runtime startup flow to watcher_manager (`start.sh`/`stop.sh`) so filesystem + Gmail + LinkedIn watchers run together.
-8. **Completed full end-to-end drill with live Gmail MCP execution (2026-04-11 evening)**:
-   - Configured Gmail MCP server (`@dev-hitesh-gupta/gmail-mcp-server`) at project level
-   - Authenticated Gmail MCP via OAuth (credentials stored in `~/.gmail-mcp`)
-   - Executed live test: mark read + archive on message `19d7d5c92e70f76b`
-   - Verified actual Gmail state changes via MCP
-   - Sent live reply to message `19d7d4bf130b8546` from `mrasadwaheed@gmail.com`
-   - Patched `process_email_actions.py` metrics to show "queued" instead of misleading "successful" counts
-   - All 3 watchers confirmed running (filesystem, Gmail, LinkedIn)
+1. Fixed Approved-folder execution path so approved email actions process while watchers are already running (no restart required).
+2. Replaced generic approved-email handling with direct skill execution in `src/orchestrator/orchestrator.py` (`process_email_actions.py`), so checked actions queue correctly (reply/mark_as_read/archive).
+3. Integrated orchestrator processing loop into watcher manager runtime in `src/orchestrator/watcher_manager.py`, so watcher lifecycle + file processing stay coupled in one long-running process.
+4. Added automatic low-priority/newsletter triage flow via `src/orchestrator/skills/auto_process_emails.py` and Needs_Action filtering in orchestrator.
+5. Hardened MCP result classification in `src/orchestrator/mcp_processor.py` to treat explicit failure text as failed execution.
+6. Added startup preflight gate in watcher manager (`run_startup_preflight`) and Gmail MCP auth validation method in MCP processor (`validate_gmail_mcp_auth`).
+7. Verified startup preflight end-to-end on current token:
+   - `./stop.sh && ./start.sh` completed
+   - Watcher manager logs show: `✅ Startup preflight passed: Gmail MCP authentication healthy`
+8. Verified approved action pipeline now follows real action path:
+   - Approved email test produced `Done/PROCESSED_EMAIL_TEST_APPROVED_FLOW.md`
+   - Action summary shows queued MCP actions (reply, mark_as_read, archive)
+   - MCP artifacts generated in `Done/EXECUTED_MCP_*.json` for test message flows.
 
 ---
 
@@ -105,32 +97,36 @@
 ## ⚠️ Known Constraints
 
 1. LinkedIn direct message monitoring is not supported for standard app access (requires LinkedIn Partner Program).
-2. Windows Task Scheduler flow is not yet re-validated after Linux-side scheduler fixes (cron is validated and active).
+2. Gmail MCP auth can drift/fail independently of local Gmail API token validity; startup preflight now detects this early, but runtime re-auth may still be required.
+3. Windows Task Scheduler flow is not yet re-validated after Linux-side scheduler fixes (cron is validated and active).
 
 ---
 
 ## 📋 Next Steps (Prioritized)
 
-1. **HITL path re-validation for sensitive emails**
-   - Run one strict HITL scenario end-to-end: Gmail input → `Pending_Approval` → move to `Approved` → MCP execution.
-   - Confirm no direct execution occurs before approval for sensitive/reply actions.
+### Immediate (2026-04-16 onward)
+1. **Keep Gmail MCP startup preflight mandatory**
+   - Treat startup as failed if preflight fails; re-auth before running automation.
+2. **Run one strict HITL sensitive-email E2E drill**
+   - Gmail input → `Pending_Approval` → `Approved` → MCP execution.
+   - Verify real Gmail side effects (mark read/archive/reply) and matching Done artifacts.
+3. **Dashboard truthfulness improvement (MCP final state)**
+   - Surface final execution outcomes from `Done/EXECUTED_MCP_*.json` separately from queue-time counts.
+4. **Document operator runbook for Gmail MCP auth drift**
+   - Include explicit re-auth and restart validation commands.
 
-2. **Dashboard truthfulness improvement (MCP final state)**
-   - Extend dashboard update to reflect final MCP execution outcomes (from `Done/EXECUTED_MCP_*.json`), not only queue-time status.
-   - Keep queue-time and execution-time metrics clearly separated.
-
-3. **LinkedIn regression checks**
+### Follow-up
+1. **LinkedIn regression checks**
    - Add/maintain tests for auth exchange path (including no-`code_verifier` fallback behavior).
    - Add smoke test for token refresh behavior in long-running flow.
 
-4. **Cleanup + hardening**
+2. **Cleanup + hardening**
    - Remove temporary auth artifacts (e.g., `credentials/linkedin_pkce_verifier.txt`) after confirmation.
-   - Add a startup preflight check that validates Gmail MCP authentication before watcher startup.
 
-5. **Windows scheduler parity check**
+3. **Windows scheduler parity check**
    - Re-validate `scripts/setup_task_scheduler.ps1` execution path after payload updates.
 
-6. **Documentation maintenance**
+4. **Documentation maintenance**
    - Update docs to include project-level Gmail MCP setup/auth path caveat and verification commands.
    - Keep API-first LinkedIn guidance consistent across quickstart/testing/reference docs.
    - Ensure startup docs reference watcher_manager-based `start.sh`/`stop.sh` behavior.

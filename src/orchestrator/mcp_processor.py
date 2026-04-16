@@ -344,12 +344,33 @@ Execute the specified MCP action and return the result.
                 )
 
                 if result.returncode == 0:
-                    self.logger.info(f"MCP action executed successfully via {mcp_server}")
-                    # Parse the result to extract success/failure info
                     output = result.stdout
-                    success = "error" not in output.lower() and "failed" not in output.lower()
+                    output_lower = output.lower()
+
+                    # Detect explicit failure signals in Claude output
+                    failure_signals = [
+                        'action failed',
+                        'could not',
+                        'token failed',
+                        'oauth',
+                        'not executed',
+                        'request to https://oauth2.googleapis.com/token failed',
+                        'error:'
+                    ]
+                    has_failure_signal = any(signal in output_lower for signal in failure_signals)
+
+                    if has_failure_signal:
+                        self.logger.error(f"MCP action reported failure via {mcp_server}")
+                        return {
+                            'success': False,
+                            'error': output[:500],
+                            'output': output[:500],
+                            'returncode': result.returncode
+                        }
+
+                    self.logger.info(f"MCP action executed successfully via {mcp_server}")
                     return {
-                        'success': success,
+                        'success': True,
                         'output': output[:500],  # Limit output length
                         'returncode': result.returncode
                     }
@@ -376,6 +397,26 @@ Execute the specified MCP action and return the result.
         except Exception as e:
             self.logger.error(f"Error executing MCP action via {mcp_server}: {e}", exc_info=True)
             return {'success': False, 'error': f'Exception executing MCP action: {str(e)}'}
+
+    def validate_gmail_mcp_auth(self) -> Dict[str, Any]:
+        """Run non-destructive Gmail MCP auth preflight check."""
+        try:
+            instruction = """
+Please verify Gmail MCP authentication by performing a non-destructive profile check.
+Use Gmail MCP tool to read mailbox profile only (no write actions).
+Return success only if MCP auth and token refresh work.
+"""
+            result = self._execute_claude_with_mcp(instruction, 'gmail')
+
+            if result.get('success'):
+                self.logger.info('Gmail MCP preflight check passed')
+            else:
+                self.logger.error(f"Gmail MCP preflight check failed: {result.get('error', result.get('output', 'Unknown error'))}")
+
+            return result
+        except Exception as e:
+            self.logger.error(f'Gmail MCP preflight check exception: {e}', exc_info=True)
+            return {'success': False, 'error': str(e)}
 
     def process_single_action_file(self, file_path: Path) -> Dict[str, Any]:
         """
