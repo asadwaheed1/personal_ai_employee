@@ -19,6 +19,7 @@ import sys
 
 # Import MCP processor for Silver Tier
 from .mcp_processor import MCPProcessor
+from .skills.update_dashboard import UpdateDashboardSkill
 
 
 class Orchestrator:
@@ -85,6 +86,19 @@ class Orchestrator:
                 }, f, indent=2)
         except Exception as e:
             self.logger.error(f'Failed to save state: {e}')
+
+    def _log_dashboard_event(self, activity_log: str = '', summary: str = ''):
+        """Append event activity to dashboard and refresh pending counts"""
+        try:
+            dashboard_skill = UpdateDashboardSkill(str(self.vault_path))
+            params = {'status': 'operational'}
+            if activity_log:
+                params['activity_log'] = activity_log
+            if summary:
+                params['summary'] = summary
+            dashboard_skill.execute(params)
+        except Exception as e:
+            self.logger.warning(f'Failed to update dashboard event: {e}')
 
     def _acquire_processing_lock(self) -> bool:
         """Acquire global processing lock to prevent concurrent Claude runs"""
@@ -237,6 +251,10 @@ All files have been processed and moved to appropriate folders.
             return True
 
         self.logger.info(f'Processing {len(files)} files in Needs_Action')
+        self._log_dashboard_event(
+            activity_log=f"Needs_Action intake: {len(files)} file(s) detected",
+            summary=f"Processing {len(files)} item(s) from Needs_Action"
+        )
 
         # Auto-process newsletter/promotional emails first
         email_files = [f for f in files if f.name.startswith('EMAIL_') and f.suffix == '.md']
@@ -275,7 +293,37 @@ All files have been processed and moved to appropriate folders.
             )
 
             if result.returncode == 0:
-                self.logger.info('Auto-processing completed successfully')
+                summary_logged = False
+                try:
+                    payload = json.loads(result.stdout)
+                    skill_result = payload.get('result', {}) if isinstance(payload, dict) else {}
+                    processed = skill_result.get('processed', 0)
+                    kept_for_review = skill_result.get('kept_for_review', 0)
+                    moved_to_pending = skill_result.get('moved_to_pending_approval', 0)
+                    self.logger.info(
+                        'Auto-processing completed: '
+                        f'processed={processed}, '
+                        f'kept_for_review={kept_for_review}, '
+                        f'moved_to_pending_approval={moved_to_pending}'
+                    )
+                    self._log_dashboard_event(
+                        activity_log=(
+                            f"Email auto-processing: processed={processed}, "
+                            f"kept_for_review={kept_for_review}, "
+                            f"moved_to_pending_approval={moved_to_pending}"
+                        ),
+                        summary=(
+                            f"Needs_Action email cycle complete: {processed} auto-processed, "
+                            f"{kept_for_review} kept for review, "
+                            f"{moved_to_pending} moved to Pending_Approval"
+                        )
+                    )
+                    summary_logged = True
+                except Exception:
+                    pass
+
+                if not summary_logged:
+                    self.logger.info('Auto-processing completed successfully')
                 return True
             else:
                 self.logger.error(f'Auto-processing failed: {result.stderr}')
@@ -305,6 +353,16 @@ All files have been processed and moved to appropriate folders.
             results = self.mcp_processor.process_pending_actions()
 
             self.logger.info(f"MCP processing complete: {results['successful']} successful, {results['failed']} failed")
+            self._log_dashboard_event(
+                activity_log=(
+                    f"MCP actions executed: {results['successful']} success, "
+                    f"{results['failed']} failed"
+                ),
+                summary=(
+                    f"Done updates from MCP: {results['successful']} executed, "
+                    f"{results['failed']} failed"
+                )
+            )
 
             # Return True if at least some succeeded, or if there were no failures
             return results['failed'] == 0 or results['successful'] > 0
@@ -319,6 +377,10 @@ All files have been processed and moved to appropriate folders.
             return True
 
         self.logger.info(f'Executing {len(files)} approved actions')
+        self._log_dashboard_event(
+            activity_log=f"Approved intake: {len(files)} file(s) ready for execution",
+            summary=f"Executing {len(files)} approved action(s)"
+        )
 
         success_count = 0
         for file_path in files:
@@ -342,6 +404,10 @@ All files have been processed and moved to appropriate folders.
                 self.logger.error(f'Failed to process approved file {file_path.name}: {e}', exc_info=True)
 
         self.logger.info(f'Approved actions: {success_count}/{len(files)} successful')
+        self._log_dashboard_event(
+            activity_log=f"Approved execution complete: {success_count}/{len(files)} succeeded",
+            summary=f"Approved actions executed: {success_count} success, {len(files) - success_count} failed"
+        )
         return success_count > 0
 
     def _execute_email_actions(self, email_file: Path) -> bool:
@@ -384,6 +450,10 @@ All files have been processed and moved to appropriate folders.
             return True
 
         self.logger.info(f'Processing {len(files)} files in Inbox')
+        self._log_dashboard_event(
+            activity_log=f"Inbox intake: {len(files)} new file(s)",
+            summary=f"Processing {len(files)} new Inbox item(s)"
+        )
         context = f'Process {len(files)} items from /Inbox/ folder'
         return self._trigger_claude_processing(context)
 

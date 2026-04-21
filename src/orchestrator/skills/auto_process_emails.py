@@ -33,7 +33,8 @@ class AutoProcessEmailsSkill(BaseSkill):
             }
 
         processed_count = 0
-        kept_count = 0
+        kept_for_review_count = 0
+        moved_to_pending_approval_count = 0
         results = []
 
         for email_file in email_files:
@@ -49,9 +50,18 @@ class AutoProcessEmailsSkill(BaseSkill):
                         'action': 'auto_processed',
                         'reason': classification['reason']
                     })
+                elif classification.get('requires_approval', False):
+                    # Move approval-required emails out of Needs_Action
+                    self._move_to_pending_approval(email_file, classification)
+                    moved_to_pending_approval_count += 1
+                    results.append({
+                        'file': email_file.name,
+                        'action': 'moved_to_pending_approval',
+                        'reason': classification['reason']
+                    })
                 else:
-                    # Keep for human review
-                    kept_count += 1
+                    # Keep non-approval review items in Needs_Action
+                    kept_for_review_count += 1
                     results.append({
                         'file': email_file.name,
                         'action': 'kept_for_review',
@@ -67,12 +77,17 @@ class AutoProcessEmailsSkill(BaseSkill):
                 })
 
         # Update dashboard
-        self._update_dashboard_summary(processed_count, kept_count)
+        self._update_dashboard_summary(
+            processed_count,
+            kept_for_review_count,
+            moved_to_pending_approval_count
+        )
 
         return {
             "success": True,
             "processed": processed_count,
-            "kept": kept_count,
+            "kept_for_review": kept_for_review_count,
+            "moved_to_pending_approval": moved_to_pending_approval_count,
             "results": results
         }
 
@@ -118,6 +133,7 @@ class AutoProcessEmailsSkill(BaseSkill):
         if is_high_priority or is_important:
             return {
                 'should_auto_process': False,
+                'requires_approval': requires_approval,
                 'reason': 'High priority or requires human review'
             }
 
@@ -187,6 +203,27 @@ class AutoProcessEmailsSkill(BaseSkill):
 
         self.logger.info(f"Auto-processed: {email_file.name}")
 
+    def _move_to_pending_approval(self, email_file: Path, classification: Dict[str, Any]):
+        """Move approval-required email from Needs_Action to Pending_Approval"""
+        content = self.read_file(email_file)
+        pending_path = self.vault_path / 'Pending_Approval' / f'PENDING_{email_file.name}'
+
+        summary = f"""
+
+---
+## Approval Routing
+**Moved**: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+**Reason**: {classification['reason']}
+**Status**: Awaiting human approval
+"""
+
+        self.write_file(pending_path, content + summary)
+
+        if email_file.exists():
+            email_file.unlink()
+
+        self.logger.info(f"Moved to Pending_Approval: {email_file.name}")
+
     def _create_mcp_mark_read(self, message_id: str, timestamp: str):
         """Create MCP action to mark email as read"""
         action_filename = f"MCP_EMAIL_mark_as_read_{timestamp}_{message_id[:8]}.json"
@@ -229,14 +266,18 @@ class AutoProcessEmailsSkill(BaseSkill):
         action_path.write_text(json.dumps(mcp_action, indent=2))
         self.logger.info(f"Created MCP archive action: {action_filename}")
 
-    def _update_dashboard_summary(self, processed: int, kept: int):
+    def _update_dashboard_summary(self, processed: int, kept_for_review: int, moved_to_pending_approval: int):
         """Update dashboard with auto-processing summary"""
         from update_dashboard import UpdateDashboardSkill
 
         try:
             dashboard_skill = UpdateDashboardSkill(str(self.vault_path))
             dashboard_skill.execute({
-                'summary': f"Auto-processed {processed} newsletter/promotional emails, kept {kept} for review"
+                'summary': (
+                    f"Auto-processed {processed} emails; "
+                    f"kept {kept_for_review} for review; "
+                    f"moved {moved_to_pending_approval} to Pending_Approval"
+                )
             })
         except Exception as e:
             self.logger.warning(f"Failed to update dashboard: {e}")

@@ -1,9 +1,9 @@
 # Personal AI Employee - Project Status
 
-**Last Updated:** 2026-04-16  
+**Last Updated:** 2026-04-20 (evening)  
 **Current Branch:** silver-imp  
 **Target Tier:** Silver  
-**Overall Status:** ✅ Silver requirements complete; runtime hardened with watcher-manager orchestrator integration + Gmail MCP startup preflight validation (pass) on current token.
+**Overall Status:** ✅ Silver requirements complete; startup preflight gate correctly blocked transient Gmail MCP auth-refresh failure and later re-validated healthy auth.
 
 ---
 
@@ -22,21 +22,34 @@
 
 ---
 
-## ✅ Latest Confirmed Outcomes (2026-04-16)
+## ✅ Latest Confirmed Outcomes (2026-04-20)
 
-1. Fixed Approved-folder execution path so approved email actions process while watchers are already running (no restart required).
-2. Replaced generic approved-email handling with direct skill execution in `src/orchestrator/orchestrator.py` (`process_email_actions.py`), so checked actions queue correctly (reply/mark_as_read/archive).
-3. Integrated orchestrator processing loop into watcher manager runtime in `src/orchestrator/watcher_manager.py`, so watcher lifecycle + file processing stay coupled in one long-running process.
-4. Added automatic low-priority/newsletter triage flow via `src/orchestrator/skills/auto_process_emails.py` and Needs_Action filtering in orchestrator.
-5. Hardened MCP result classification in `src/orchestrator/mcp_processor.py` to treat explicit failure text as failed execution.
-6. Added startup preflight gate in watcher manager (`run_startup_preflight`) and Gmail MCP auth validation method in MCP processor (`validate_gmail_mcp_auth`).
-7. Verified startup preflight end-to-end on current token:
-   - `./stop.sh && ./start.sh` completed
-   - Watcher manager logs show: `✅ Startup preflight passed: Gmail MCP authentication healthy`
-8. Verified approved action pipeline now follows real action path:
-   - Approved email test produced `Done/PROCESSED_EMAIL_TEST_APPROVED_FLOW.md`
-   - Action summary shows queued MCP actions (reply, mark_as_read, archive)
-   - MCP artifacts generated in `Done/EXECUTED_MCP_*.json` for test message flows.
+1. Confirmed startup preflight gate correctly blocks runtime when Gmail MCP auth-refresh fails:
+   - Failure observed in watcher manager logs: `❌ STARTUP PREFLIGHT FAILED: Gmail MCP authentication check failed`
+   - Root error during preflight/profile check: `request to https://oauth2.googleapis.com/token failed, reason:`
+   - Startup aborted as intended (watchers stopped).
+2. Confirmed this incident was not orchestrator business-logic specific:
+   - Direct Gmail MCP profile check failed during incident window with same OAuth token-endpoint error.
+   - Network diagnostics later showed DNS resolution + HTTPS reachability healthy.
+3. Confirmed recovery without code changes:
+   - Direct Gmail MCP profile check succeeded after transient window.
+   - Fresh startup preflight then passed at `2026-04-20 12:26:05`: `✅ Startup preflight passed: Gmail MCP authentication healthy`.
+4. Previously delivered Silver hardening still in place:
+   - Approved-folder execution path works without restart.
+   - Direct approved-email skill execution path queues actions correctly.
+   - Orchestrator loop remains integrated in watcher manager runtime.
+   - Low-priority/newsletter auto-processing remains active.
+   - MCP failure-text classification remains strict in `mcp_processor`.
+5. Fixed email routing behavior for post-intake processing:
+   - Auto-processed emails are removed from `Needs_Action` and archived to `Done`.
+   - Emails with `requires_approval: true` are routed to `Pending_Approval` (no longer left in `Needs_Action`).
+   - `Needs_Action` now acts as active queue, not long-term storage.
+6. Added dashboard event-level visibility from orchestrator loop:
+   - Logs/dashboard activity now include `Needs_Action` intake, `Inbox` intake, `Approved` intake, MCP execution results, and email auto-processing outcome counts.
+   - Auto-processing log now reports explicit counters: `processed`, `kept_for_review`, `moved_to_pending_approval`.
+   - Dashboard pending counts remain auto-refreshed from `Needs_Action` + `Pending_Approval`.
+7. Verified no filename-duplicate email markdown artifacts across `Needs_Action` and `Done` in current vault snapshot.
+   - Check result: `DUPLICATE_EMAIL_COUNT=0` for `EMAIL_*.md` base-name comparison.
 
 ---
 
@@ -104,16 +117,26 @@
 
 ## 📋 Next Steps (Prioritized)
 
-### Immediate (2026-04-16 onward)
-1. **Keep Gmail MCP startup preflight mandatory**
-   - Treat startup as failed if preflight fails; re-auth before running automation.
-2. **Run one strict HITL sensitive-email E2E drill**
+### Immediate (2026-04-20 onward)
+1. **Keep Gmail MCP startup preflight mandatory (no bypass)**
+   - Treat startup as failed if preflight fails; do not run automation until healthy preflight.
+2. **Publish incident runbook for transient Gmail MCP auth-refresh failures**
+   - Include triage order: direct `gmail_get_profile` check → DNS/HTTPS/proxy checks → restart validation.
+   - Include fallback re-auth/reset steps only after transport/session checks.
+3. **Add bounded retry/backoff in Gmail MCP preflight check**
+   - Reduce false startup aborts from short-lived token-endpoint/network blips.
+4. **Run one strict HITL sensitive-email E2E drill after preflight pass**
    - Gmail input → `Pending_Approval` → `Approved` → MCP execution.
    - Verify real Gmail side effects (mark read/archive/reply) and matching Done artifacts.
-3. **Dashboard truthfulness improvement (MCP final state)**
-   - Surface final execution outcomes from `Done/EXECUTED_MCP_*.json` separately from queue-time counts.
-4. **Document operator runbook for Gmail MCP auth drift**
-   - Include explicit re-auth and restart validation commands.
+5. **Stabilize `Needs_Action` drain behavior for important/uncertain emails**
+   - Decide explicit policy: keep in `Needs_Action`, auto-route to `Pending_Approval`, or trigger manual-review task generation.
+   - Prevent repeated "auto-processing completed" loops with unchanged review-only email set.
+6. **Dashboard truthfulness hardening (action-level audit trail)**
+   - Add per-item action trace (file name + action taken + destination folder) in Recent Activity.
+   - Surface MCP final execution outcomes from `Done/EXECUTED_MCP_*.json` separately from queue-time counts.
+7. **Validate live dashboard updates end-to-end after watcher restart**
+   - Confirm updates appear when files enter `Needs_Action`, `Approved`, and when results land in `Done`.
+   - Confirm new orchestrator counters match real folder transitions.
 
 ### Follow-up
 1. **LinkedIn regression checks**
