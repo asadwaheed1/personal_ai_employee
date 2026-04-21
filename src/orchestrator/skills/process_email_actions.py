@@ -62,7 +62,7 @@ class ProcessEmailActionsSkill(BaseSkill):
         )
 
         # Move email file to Done with execution summary
-        self._archive_email_file(email_path, email_data, actions, results)
+        self._archive_email_file(email_path, email_data, actions, results, reply_body)
 
         # If task file was provided, also move it to Done
         if task_file:
@@ -212,6 +212,7 @@ class ProcessEmailActionsSkill(BaseSkill):
 
             # Map checkbox text to action names
             action_mappings = [
+                (r'- \[x\].*draft a reply', 'draft_reply'),
                 (r'- \[x\].*reply', 'reply'),
                 (r'- \[x\].*mark as read', 'mark_as_read'),
                 (r'- \[x\].*archive', 'archive'),
@@ -225,7 +226,6 @@ class ProcessEmailActionsSkill(BaseSkill):
 
         # Parse Human Notes section for reply content
         if '## Human Notes' in content or '## Human notes' in content:
-            # Try both capitalizations
             notes_section = None
             if '## Human Notes' in content:
                 notes_section = content.split('## Human Notes')[1]
@@ -233,16 +233,13 @@ class ProcessEmailActionsSkill(BaseSkill):
                 notes_section = content.split('## Human notes')[1]
 
             if notes_section:
-                # Get content until next ## or end
                 next_section = re.search(r'\n##[^#]', notes_section)
                 if next_section:
                     notes_section = notes_section[:next_section.start()]
 
-                # Extract the reply content
                 notes_text = notes_section.strip()
-
-                # If there's content, use it as reply body
-                if notes_text:
+                default_placeholder = '[Add your notes here. If replying, write your reply message and check "Draft a reply" above]'
+                if notes_text and default_placeholder.lower() not in notes_text.lower():
                     actions_data['reply_body'] = notes_text
 
         # Remove duplicates while preserving order
@@ -326,7 +323,12 @@ class ProcessEmailActionsSkill(BaseSkill):
 
                 elif action == 'reply':
                     if not reply_body:
-                        raise ValueError("Reply body is required for reply action")
+                        results.append({
+                            'action': 'reply',
+                            'status': 'skipped',
+                            'error': 'Reply body missing in Human Notes'
+                        })
+                        continue
                     mcp_action = self._create_mcp_reply_action(
                         message_id, thread_id, email_data,
                         reply_body, reply_subject, timestamp
@@ -336,6 +338,32 @@ class ProcessEmailActionsSkill(BaseSkill):
                         'status': 'mcp_action_created',
                         'mcp_file': mcp_action['file'],
                         'mcp_tool': 'send_reply'
+                    })
+
+                elif action == 'draft_reply':
+                    if not reply_body:
+                        results.append({
+                            'action': 'draft_reply',
+                            'status': 'skipped',
+                            'error': 'Reply body missing in Human Notes'
+                        })
+                        continue
+                    mcp_action = self._create_mcp_draft_reply_action(
+                        message_id, thread_id, email_data,
+                        reply_body, reply_subject, timestamp
+                    )
+                    results.append({
+                        'action': 'draft_reply',
+                        'status': 'mcp_action_created',
+                        'mcp_file': mcp_action['file'],
+                        'mcp_tool': 'create_draft'
+                    })
+
+                elif action == 'forward':
+                    results.append({
+                        'action': 'forward',
+                        'status': 'skipped',
+                        'error': 'Forward recipient missing in Human Notes'
                     })
 
                 else:
@@ -449,6 +477,55 @@ class ProcessEmailActionsSkill(BaseSkill):
 
         return {'file': str(action_path), 'action': 'reply'}
 
+    def _create_mcp_draft_reply_action(self, message_id: str, thread_id: str,
+                                       email_data: Dict[str, Any], reply_body: str,
+                                       reply_subject: str, timestamp: str) -> Dict[str, Any]:
+        """Create an MCP action file for draft reply"""
+        if not reply_body or not reply_body.strip():
+            raise ValueError("Reply body cannot be empty")
+
+        action_filename = f"MCP_EMAIL_draft_reply_{timestamp}_{message_id[:8]}.json"
+        action_path = self.vault_path / 'Needs_Action' / action_filename
+
+        from_header = email_data.get('from', '')
+        import re
+        email_match = re.search(r'<([^>]+)>', from_header)
+        if email_match:
+            reply_to = email_match.group(1)
+        elif '@' in from_header:
+            reply_to = from_header.strip()
+        else:
+            raise ValueError(f"Cannot extract reply-to email from: {from_header}")
+
+        if not thread_id:
+            thread_id = message_id
+
+        original_subject = email_data.get('subject', '')
+        if not original_subject.lower().startswith('re:'):
+            reply_subject = f"Re: {original_subject}" if not reply_subject else reply_subject
+        else:
+            reply_subject = original_subject if not reply_subject else reply_subject
+
+        mcp_action = {
+            "mcp_server": "gmail",
+            "tool": "create_draft",
+            "timestamp": datetime.now().isoformat(),
+            "status": "pending",
+            "params": {
+                "to": reply_to,
+                "subject": reply_subject,
+                "body": reply_body,
+                "threadId": thread_id
+            },
+            "result": None,
+            "executed_at": None
+        }
+
+        action_path.write_text(json.dumps(mcp_action, indent=2), encoding='utf-8')
+        self.logger.info(f"Created MCP draft reply action: {action_path.name}")
+
+        return {'file': str(action_path), 'action': 'draft_reply'}
+
     def _mark_as_read(self, service, message_id: str) -> Dict[str, Any]:
         """Mark email as read by removing UNREAD label"""
         service.users().messages().modify(
@@ -529,7 +606,7 @@ class ProcessEmailActionsSkill(BaseSkill):
         }
 
     def _archive_email_file(self, email_path: Path, email_data: Dict[str, Any],
-                           actions: list, results: list):
+                           actions: list, results: list, reply_body: str = ''):
         """Move email file to Done with execution summary"""
         content = self.read_file(email_path)
 
@@ -539,6 +616,31 @@ class ProcessEmailActionsSkill(BaseSkill):
 
         queued_count = len([r for r in results if r['status'] in ('mcp_action_created', 'success')])
         failed_count = len([r for r in results if r['status'] == 'failed'])
+        skipped_count = len([r for r in results if r['status'] == 'skipped'])
+
+        action_lines = []
+        for result in results:
+            action = result.get('action', 'unknown')
+            status = result.get('status', 'unknown')
+            if status == 'mcp_action_created':
+                action_lines.append(
+                    f"- ✅ **{action}** queued via `{result.get('mcp_tool', 'unknown_tool')}` ({Path(result.get('mcp_file', '')).name})"
+                )
+            elif status == 'success':
+                action_lines.append(f"- ✅ **{action}** executed")
+            elif status == 'skipped':
+                action_lines.append(f"- ⚠️ **{action}** skipped: {result.get('error', 'No reason provided')}")
+            elif status == 'failed':
+                action_lines.append(f"- ❌ **{action}** failed: {result.get('error', 'Unknown error')}")
+            else:
+                action_lines.append(f"- ⚠️ **{action}** {status}: {result.get('error', 'No details')}" )
+
+        reply_block = ''
+        if reply_body and reply_body.strip() and any(
+            r.get('action') in ('reply', 'draft_reply') and r.get('status') == 'mcp_action_created'
+            for r in results
+        ):
+            reply_block = f"\n\n### Reply Content\n\n{reply_body.strip()}\n"
 
         summary = f"""
 
@@ -547,12 +649,11 @@ class ProcessEmailActionsSkill(BaseSkill):
 **Executed**: {timestamp}
 **Actions Requested**: {action_summary}
 **Queued for MCP Execution**: {queued_count}
-**Failed to Queue**: {failed_count}
+**Failed**: {failed_count}
+**Skipped**: {skipped_count}
 
-### Action Results
-```json
-{json.dumps(results, indent=2)}
-```
+### Actions Taken
+{chr(10).join(action_lines) if action_lines else '- No actions found'}{reply_block}
 """
 
         content += summary

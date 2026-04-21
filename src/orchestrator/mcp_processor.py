@@ -17,6 +17,7 @@ import subprocess
 import sys
 import os
 import tempfile
+import signal
 
 
 class MCPProcessor:
@@ -233,16 +234,18 @@ Use Claude's Gmail MCP server to send this email.
 Return the result of the operation.
 """
         elif tool == 'modify_email':
+            message_id = params.get('message_id', params.get('messageId', 'Not specified'))
+            remove_labels = params.get('removeLabelIds', params.get('removeLabels', []))
+            add_labels = params.get('addLabelIds', params.get('addLabels', []))
             return f"""
-Please execute a Gmail modify_email action using the MCP server.
+Please execute Gmail label update using Gmail MCP tool `gmail_modify_labels`.
 
-Parameters:
-- message_id: {params.get('message_id', 'Not specified')}
-- removeLabelIds: {params.get('removeLabelIds', [])}
-- addLabelIds: {params.get('addLabelIds', [])}
+Use exactly these parameters:
+- messageId: {message_id}
+- removeLabels: {remove_labels}
+- addLabels: {add_labels}
 
-Use Claude's Gmail MCP server to modify the email labels.
-Return the result of the operation.
+Return operation result.
 """
         elif tool == 'trash_email':
             return f"""
@@ -335,16 +338,30 @@ Execute the specified MCP action and return the result.
             try:
                 # Execute Claude Code with the instruction
                 # Using --dangerously-skip-permissions to allow MCP server access
-                result = subprocess.run(
+                process = subprocess.Popen(
                     ['claude', '--dangerously-skip-permissions', f'Please execute the instruction in {temp_file_path}'],
                     cwd=str(self.vault_path),
-                    capture_output=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                     text=True,
-                    timeout=300  # 5 minute timeout
+                    start_new_session=True
                 )
 
-                if result.returncode == 0:
-                    output = result.stdout
+                try:
+                    stdout, stderr = process.communicate(timeout=300)
+                except subprocess.TimeoutExpired:
+                    try:
+                        os.killpg(process.pid, signal.SIGTERM)
+                        time.sleep(2)
+                        if process.poll() is None:
+                            os.killpg(process.pid, signal.SIGKILL)
+                    except Exception:
+                        pass
+                    self.logger.error(f"MCP action timed out via {mcp_server}")
+                    return {'success': False, 'error': 'Timeout executing MCP action'}
+
+                if process.returncode == 0:
+                    output = stdout
                     output_lower = output.lower()
 
                     # Detect explicit failure signals in Claude output
@@ -365,23 +382,23 @@ Execute the specified MCP action and return the result.
                             'success': False,
                             'error': output[:500],
                             'output': output[:500],
-                            'returncode': result.returncode
+                            'returncode': process.returncode
                         }
 
                     self.logger.info(f"MCP action executed successfully via {mcp_server}")
                     return {
                         'success': True,
                         'output': output[:500],  # Limit output length
-                        'returncode': result.returncode
+                        'returncode': process.returncode
                     }
-                else:
-                    self.logger.error(f"MCP action failed via {mcp_server}: {result.stderr}")
-                    return {
-                        'success': False,
-                        'error': result.stderr[:500],  # Limit error length
-                        'output': result.stdout[:500],
-                        'returncode': result.returncode
-                    }
+
+                self.logger.error(f"MCP action failed via {mcp_server}: {stderr}")
+                return {
+                    'success': False,
+                    'error': stderr[:500],  # Limit error length
+                    'output': stdout[:500],
+                    'returncode': process.returncode
+                }
 
             finally:
                 # Clean up temporary file

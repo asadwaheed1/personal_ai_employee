@@ -16,6 +16,8 @@ from typing import List, Dict
 import logging
 import fcntl
 import sys
+import os
+import signal
 
 # Import MCP processor for Silver Tier
 from .mcp_processor import MCPProcessor
@@ -212,21 +214,35 @@ All files have been processed and moved to appropriate folders.
 
             # Run Claude Code with the instruction
             # Using --dangerously-skip-permissions to allow file operations in automated mode
-            result = subprocess.run(
+            process = subprocess.Popen(
                 ['claude', '--dangerously-skip-permissions', 'Please read and execute the instructions in .claude_instruction.md'],
                 cwd=str(self.vault_path),
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=300  # 5 minute timeout
+                start_new_session=True
             )
 
-            if result.returncode == 0:
-                self.logger.info('Claude processing completed successfully')
-                self.logger.debug(f'Output: {result.stdout[:500]}')
-                return True
-            else:
-                self.logger.error(f'Claude processing failed: {result.stderr}')
+            try:
+                stdout, stderr = process.communicate(timeout=300)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                    time.sleep(2)
+                    if process.poll() is None:
+                        os.killpg(process.pid, signal.SIGKILL)
+                except Exception:
+                    pass
+                self.logger.error('Claude processing timed out')
                 return False
+
+            if process.returncode == 0:
+                self.logger.info('Claude processing completed successfully')
+                self.logger.debug(f'Output: {stdout[:500]}')
+                return True
+
+            self.logger.error(f'Claude processing failed: {stderr}')
+            return False
 
         except subprocess.TimeoutExpired:
             self.logger.error('Claude processing timed out')

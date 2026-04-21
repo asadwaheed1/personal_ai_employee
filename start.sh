@@ -14,6 +14,20 @@ echo ""
 echo "Vault: $VAULT_PATH"
 echo ""
 
+# Prevent duplicate watcher manager instances
+EXISTING_MANAGER_PID=$(pgrep -f "src.orchestrator.watcher_manager .*${VAULT_PATH} start" | head -n 1 || true)
+if [ -n "$EXISTING_MANAGER_PID" ]; then
+    echo "Watcher manager already running (PID: $EXISTING_MANAGER_PID)"
+    echo "Stop first with ./stop.sh, or check logs in $VAULT_PATH/Logs"
+    exit 1
+fi
+
+# Prevent duplicate live log tailers
+EXISTING_TAIL_PID=$(pgrep -f "tail -f $VAULT_PATH/Logs/watcher_manager_" | head -n 1 || true)
+if [ -n "$EXISTING_TAIL_PID" ]; then
+    kill "$EXISTING_TAIL_PID" 2>/dev/null || true
+fi
+
 # Check if vault exists
 if [ ! -d "$VAULT_PATH" ]; then
     echo "Error: Vault not found at $VAULT_PATH"

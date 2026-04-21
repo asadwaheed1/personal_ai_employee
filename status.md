@@ -1,9 +1,9 @@
 # Personal AI Employee - Project Status
 
-**Last Updated:** 2026-04-20 (evening)  
+**Last Updated:** 2026-04-21 (afternoon)  
 **Current Branch:** silver-imp  
 **Target Tier:** Silver  
-**Overall Status:** ✅ Silver requirements complete; startup preflight gate correctly blocked transient Gmail MCP auth-refresh failure and later re-validated healthy auth.
+**Overall Status:** ✅ Silver requirements complete; startup/runtime hardening + approved-email execution/reporting fixes applied and validated.
 
 ---
 
@@ -22,7 +22,7 @@
 
 ---
 
-## ✅ Latest Confirmed Outcomes (2026-04-20)
+## ✅ Latest Confirmed Outcomes (2026-04-21)
 
 1. Confirmed startup preflight gate correctly blocks runtime when Gmail MCP auth-refresh fails:
    - Failure observed in watcher manager logs: `❌ STARTUP PREFLIGHT FAILED: Gmail MCP authentication check failed`
@@ -50,6 +50,18 @@
    - Dashboard pending counts remain auto-refreshed from `Needs_Action` + `Pending_Approval`.
 7. Verified no filename-duplicate email markdown artifacts across `Needs_Action` and `Done` in current vault snapshot.
    - Check result: `DUPLICATE_EMAIL_COUNT=0` for `EMAIL_*.md` base-name comparison.
+8. Startup duplication behavior clarified and hardened:
+   - Repeated preflight log lines were from repeated start/shutdown cycles and in-flight preflight finishing after shutdown signal, not concurrent active duplicate managers.
+   - Added single-instance guard in `start.sh` to block duplicate watcher-manager launches.
+9. Claude subprocess lifecycle hardened for timeout cleanup:
+   - Replaced blocking `subprocess.run(... timeout=...)` paths with `Popen + communicate(timeout)` for Claude invocations in orchestrator + MCP processor.
+   - On timeout, process group now gets `SIGTERM` then `SIGKILL` fallback, reducing orphan/background memory usage.
+10. Approved-email action/reporting fixes applied:
+   - `process_email_actions` now parses "Draft a reply" separately, skips reply/draft with explicit reason when reply body missing, and treats unchecked forward-target as skipped instead of unknown.
+   - Done-file execution summary now renders markdown "Actions Taken" (human-readable) instead of raw JSON blob.
+11. Gmail label-update MCP instruction normalized:
+   - MCP prompt now maps to Gmail label tool semantics (`messageId`, `removeLabels`, `addLabels`) to reduce modify-label parameter mismatch.
+   - Remaining "Requested entity was not found" failures still possible when message ID is stale/inaccessible in connected mailbox context.
 
 ---
 
