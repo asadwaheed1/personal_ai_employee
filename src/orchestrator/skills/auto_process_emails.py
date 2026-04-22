@@ -235,7 +235,7 @@ class AutoProcessEmailsSkill(BaseSkill):
             "timestamp": datetime.now().isoformat(),
             "status": "pending",
             "params": {
-                "message_id": message_id,
+                "messageId": message_id,
                 "removeLabelIds": ["UNREAD"]
             },
             "result": None,
@@ -256,7 +256,7 @@ class AutoProcessEmailsSkill(BaseSkill):
             "timestamp": datetime.now().isoformat(),
             "status": "pending",
             "params": {
-                "message_id": message_id,
+                "messageId": message_id,
                 "removeLabelIds": ["INBOX"]
             },
             "result": None,

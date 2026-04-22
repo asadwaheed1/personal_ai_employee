@@ -76,7 +76,7 @@ class ProcessEmailActionsSkill(BaseSkill):
 
         return {
             "success": True,
-            "message_id": message_id,
+            "messageId": message_id,
             "actions_queued": queued_count,
             "actions_failed": failed_count,
             "results": results
@@ -408,8 +408,8 @@ class ProcessEmailActionsSkill(BaseSkill):
             "timestamp": datetime.now().isoformat(),
             "status": "pending",
             "params": {
-                "message_id": message_id,
-                **tool_params.get(action_type, {})
+                "messageId": message_id,
+                **{(k[0].upper()+k[1:] if k.endswith('labelIds') else k): v for k, v in tool_params.get(action_type, {}).items()}
             },
             "result": None,
             "executed_at": None
@@ -462,8 +462,8 @@ class ProcessEmailActionsSkill(BaseSkill):
             "timestamp": datetime.now().isoformat(),
             "status": "pending",
             "params": {
-                "message_id": message_id,
-                "thread_id": thread_id,
+                "messageId": message_id,
+                "threadId": thread_id,
                 "to": reply_to,
                 "subject": reply_subject,
                 "body": reply_body

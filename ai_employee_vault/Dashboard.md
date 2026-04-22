@@ -1,12 +1,18 @@
 # AI Employee Dashboard
 
 ## Last Updated
-2026-04-21 11:55
+2026-04-21 18:14
 
 ## System Status
 ✅ Operational
 
 ## Recent Activity
+- [2026-04-21 18:12] MCP action failed: message 19dafcf0d1b39635 not found
+- [2026-04-21 18:10] MCP action failed: message 19dafc4f457f3986 not found
+- [2026-04-21 18:00] Created content calendar with 5 posts for week of Apr 27
+- [2026-04-21 17:00] Created content calendar with 5 posts for week of Apr 27
+- [2026-04-21 16:00] Created content calendar with 5 posts for week of Apr 27
+- [2026-04-21 15:00] Created content calendar with 5 posts for week of Apr 27
 - [2026-04-21 12:00] Created content calendar with 5 posts for week of Apr 27
 - [2026-04-21 11:00] Created content calendar with 5 posts for week of Apr 27
 - [2026-04-20 17:00] Created content calendar with 5 posts for week of Apr 20
@@ -273,9 +279,537 @@
 - [2026-04-21 11:54] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
 - [2026-04-21 11:55] Needs_Action intake: 26 file(s) detected
 - [2026-04-21 11:55] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 15:59] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 15:59] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 15:59] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 15:59] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:00] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:00] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:00] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:00] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:01] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:01] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:01] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:01] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:02] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:02] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:02] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:02] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:03] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:03] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:03] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:03] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:04] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:04] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:04] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:04] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:05] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:05] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:05] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:05] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:06] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:06] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:06] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:06] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:07] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:07] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:07] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:07] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:08] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:08] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:08] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:08] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:09] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:09] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:09] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:09] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:10] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:10] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:10] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:10] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:11] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:11] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:11] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:11] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:12] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:12] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:12] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:12] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:13] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:13] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:13] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:13] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:14] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:14] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:14] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:14] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:15] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:15] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:15] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:15] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:16] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:16] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:16] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:16] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:17] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:17] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:17] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:17] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:18] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:18] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:18] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:18] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:19] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:19] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:19] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:19] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:20] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:20] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:20] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:20] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:21] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:21] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=1
+- [2026-04-21 16:21] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:21] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:22] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:22] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:22] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:22] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:23] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:23] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:23] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:23] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:24] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:24] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:24] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:24] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:25] Approved intake: 1 file(s) ready for execution
+- [2026-04-21 16:25] Approved execution complete: 1/1 succeeded
+- [2026-04-21 16:25] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:25] Email auto-processing: processed=1, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:28] MCP actions executed: 5 success, 0 failed
+- [2026-04-21 16:28] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:28] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:28] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:28] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:29] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:29] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:29] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:29] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:30] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:30] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:30] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:30] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:31] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:31] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:31] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:31] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:32] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:32] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:32] Needs_Action intake: 26 file(s) detected
+- [2026-04-21 16:32] Email auto-processing: processed=0, kept_for_review=26, moved_to_pending_approval=0
+- [2026-04-21 16:33] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:33] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:33] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:33] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:34] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:34] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:34] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:34] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:35] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:35] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:35] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:35] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:36] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:36] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:36] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:36] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:37] Needs_Action intake: 28 file(s) detected
+- [2026-04-21 16:37] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=1
+- [2026-04-21 16:37] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:37] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:38] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:38] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:38] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:38] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:39] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:39] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:39] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:39] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:40] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:40] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:40] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:40] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:41] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:41] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:41] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:41] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:42] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:42] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:42] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:42] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:43] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:43] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:43] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:43] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:44] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:44] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:44] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:44] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:45] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:45] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:45] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:45] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:46] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:46] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:46] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:46] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:47] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:47] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:47] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:47] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:48] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:48] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:48] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:48] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:49] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:49] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:49] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:49] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:50] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:50] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:50] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:50] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:51] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:51] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:51] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:51] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:52] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:52] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:52] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:52] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:53] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:53] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:53] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:53] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:54] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:54] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:54] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:54] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:55] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:55] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:55] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:55] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:56] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:56] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:56] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:56] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:57] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:57] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:57] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:57] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:58] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:58] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:58] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:58] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:59] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:59] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 16:59] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 16:59] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:00] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:00] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:00] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:00] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:01] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:01] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:01] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:01] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:02] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:02] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:02] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:02] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:03] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:03] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:03] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:03] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:04] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:04] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:04] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:04] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:05] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:05] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:05] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:05] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:06] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:06] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:06] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:06] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:07] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:07] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:07] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:07] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:08] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:08] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:08] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:08] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:09] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:09] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:09] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:09] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:10] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:10] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:10] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:10] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:11] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:11] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:11] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:11] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:12] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:12] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:12] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:12] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:13] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:13] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:13] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:13] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:14] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:14] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:14] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:14] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:15] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:15] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:15] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:15] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:16] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:16] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:16] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:16] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:17] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:17] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:17] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:17] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:18] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:18] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:18] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:18] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:19] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:19] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:19] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:19] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:20] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:20] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:20] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:20] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:21] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:21] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:21] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:21] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:22] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:22] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:22] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:22] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:23] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:23] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:23] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:23] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:24] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:24] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:24] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:24] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:25] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:25] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:25] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:25] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:26] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:26] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:26] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:26] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:27] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:27] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:27] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:27] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:28] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:28] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:28] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:28] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:29] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:29] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:29] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:29] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:30] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:30] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:30] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:30] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:31] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:31] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:31] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:31] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:32] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:32] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:32] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:32] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:33] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:33] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:33] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:33] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:34] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:34] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:34] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:34] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:35] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:35] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:35] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:35] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:36] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:36] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:36] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:36] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:37] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:37] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:37] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:37] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:38] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:38] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:38] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:38] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:39] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:39] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:39] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:39] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:40] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:40] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:40] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:40] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:41] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:41] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:41] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:41] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:42] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:42] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:43] MCP actions executed: 2 success, 0 failed
+- [2026-04-21 17:43] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:43] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:44] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:44] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:44] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:44] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:45] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:45] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:45] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:45] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:46] MCP actions executed: 1 success, 0 failed
+- [2026-04-21 17:46] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:46] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:47] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:47] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:47] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:47] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:48] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:48] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:48] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:48] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:49] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:49] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:49] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:49] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:50] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:50] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:50] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:50] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:51] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:51] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:51] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:51] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:52] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:52] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:52] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:52] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:53] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:53] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:53] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:53] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:54] Needs_Action intake: 28 file(s) detected
+- [2026-04-21 17:54] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=1
+- [2026-04-21 17:54] Approved intake: 1 file(s) ready for execution
+- [2026-04-21 17:54] Approved execution complete: 1/1 succeeded
+- [2026-04-21 17:54] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:54] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:55] MCP actions executed: 1 success, 0 failed
+- [2026-04-21 17:55] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:55] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:56] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:56] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:56] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:56] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:57] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:57] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:57] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:57] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:58] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:58] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:58] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:58] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 17:59] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 17:59] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:00] MCP actions executed: 1 success, 0 failed
+- [2026-04-21 18:00] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:00] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:00] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:00] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:01] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:01] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:01] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:01] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:02] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:02] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:02] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:02] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:03] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:03] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:03] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:03] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:04] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:04] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:04] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:04] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:05] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:05] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:05] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:05] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:06] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:06] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:06] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:06] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:07] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:07] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:07] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:07] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:08] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:08] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:08] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:08] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:09] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:09] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:10] MCP actions executed: 1 success, 0 failed
+- [2026-04-21 18:10] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:10] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:11] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:11] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:12] MCP actions executed: 1 success, 0 failed
+- [2026-04-21 18:12] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:12] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:12] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:12] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:13] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:13] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:14] MCP actions executed: 0 success, 1 failed
+- [2026-04-21 18:14] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:14] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
+- [2026-04-21 18:14] Needs_Action intake: 27 file(s) detected
+- [2026-04-21 18:14] Email auto-processing: processed=0, kept_for_review=27, moved_to_pending_approval=0
 
 ## Pending Actions
-39 pending actions (26 in Needs_Action, 13 awaiting approval)
+41 pending actions (27 in Needs_Action, 14 awaiting approval)
 
 ## Quick Links
 - [Needs_Action](./Needs_Action/)
@@ -289,18 +823,43 @@
 
 ## Summary
 
-Needs_Action email cycle complete: 0 auto-processed, 26 kept for review, 0 moved to Pending_Approval
-
+Needs_Action email cycle complete: 0 auto-processed, 27 kept for review, 0 moved to Pending_Approval
 
 ## Content Schedule
 **Week of April 27: 5 posts scheduled**
 Next post: 2026-04-27T09:00:00
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## Watcher Status
 
 | Watcher | Status | PID | Uptime | Restarts |
 |---------|--------|-----|--------|----------|
-| filesystem_watcher | 🟢 running | 34293 | 7m | 0|
-| gmail_watcher | 🟢 running | 34310 | 7m | 0|
-| linkedin_watcher | 🟢 running | 34324 | 7m | 0|
+| filesystem_watcher | 🟢 running | 59205 | 135m | 0|
+| gmail_watcher | 🟢 running | 59230 | 135m | 0|
+| linkedin_watcher | 🟢 running | 59245 | 135m | 0|
 

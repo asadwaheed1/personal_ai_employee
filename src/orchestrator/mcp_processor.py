@@ -104,8 +104,9 @@ class MCPProcessor:
                 with open(done_path, 'w', encoding='utf-8') as f:
                     json.dump(action_data, f, indent=2)
 
-                # Remove original file from Needs_Action
-                file_path.unlink()
+                # Remove original file from Needs_Action (ignore if already moved/removed)
+                if file_path.exists():
+                    file_path.unlink()
 
                 results['processed'] += 1
                 if execution_result.get('success', False):
@@ -234,18 +235,19 @@ Use Claude's Gmail MCP server to send this email.
 Return the result of the operation.
 """
         elif tool == 'modify_email':
-            message_id = params.get('message_id', params.get('messageId', 'Not specified'))
+            message_id = params.get('messageId', params.get('message_id', 'Not specified'))
             remove_labels = params.get('removeLabelIds', params.get('removeLabels', []))
             add_labels = params.get('addLabelIds', params.get('addLabels', []))
             return f"""
-Please execute Gmail label update using Gmail MCP tool `gmail_modify_labels`.
+Please execute Gmail label modification using the gmail_modify_labels MCP tool.
 
-Use exactly these parameters:
+Required parameters:
 - messageId: {message_id}
 - removeLabels: {remove_labels}
 - addLabels: {add_labels}
 
-Return operation result.
+Use the gmail_modify_labels tool from the Gmail MCP server to modify message labels.
+Return the operation result.
 """
         elif tool == 'trash_email':
             return f"""
@@ -262,8 +264,8 @@ Return the result of the operation.
 Please execute a Gmail send_reply action using the MCP server.
 
 Parameters:
-- message_id: {params.get('message_id', 'Not specified')}
-- thread_id: {params.get('thread_id', 'Not specified')}
+- messageId: {params.get('messageId', params.get('message_id', 'Not specified'))}
+- threadId: {params.get('threadId', params.get('thread_id', 'Not specified'))}
 - to: {params.get('to', 'Not specified')}
 - subject: {params.get('subject', 'Not specified')}
 - body: {params.get('body', 'Not specified')[:200]}...  # Truncated for brevity
@@ -338,9 +340,11 @@ Execute the specified MCP action and return the result.
             try:
                 # Execute Claude Code with the instruction
                 # Using --dangerously-skip-permissions to allow MCP server access
+                # Run from project root (not vault) so .claude/config.json and .mcp.json are accessible
+                project_root = self.vault_path.parent
                 process = subprocess.Popen(
                     ['claude', '--dangerously-skip-permissions', f'Please execute the instruction in {temp_file_path}'],
-                    cwd=str(self.vault_path),
+                    cwd=str(project_root),
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -361,36 +365,71 @@ Execute the specified MCP action and return the result.
                     return {'success': False, 'error': 'Timeout executing MCP action'}
 
                 if process.returncode == 0:
-                    output = stdout
-                    output_lower = output.lower()
+                    output = stdout.strip()
+                    try:
+                        # Strict: attempt JSON parse for robust success/failure
+                        result_json = json.loads(output)
+                        if not isinstance(result_json, dict):
+                            raise ValueError('MCP tool did not return a JSON object')
+                        if not result_json.get('success', False):
+                            self.logger.error(f"MCP JSON failure response: {result_json}")
+                            return {**result_json, 'returncode': process.returncode}
+                        self.logger.info(f"MCP action executed successfully via {mcp_server} [structured response]")
+                        return {**result_json, 'returncode': process.returncode}
+                    except Exception:
+                        output_lower = output.lower()
 
-                    # Detect explicit failure signals in Claude output
-                    failure_signals = [
-                        'action failed',
-                        'could not',
-                        'token failed',
-                        'oauth',
-                        'not executed',
-                        'request to https://oauth2.googleapis.com/token failed',
-                        'error:'
-                    ]
-                    has_failure_signal = any(signal in output_lower for signal in failure_signals)
+                        # Check for explicit success indicators in plain text
+                        success_signals = [
+                            'successfully',
+                            'sent successfully',
+                            'executed successfully',
+                            'message id:',
+                            'completed successfully'
+                        ]
+                        has_success_signal = any(signal in output_lower for signal in success_signals)
 
-                    if has_failure_signal:
-                        self.logger.error(f"MCP action reported failure via {mcp_server}")
+                        failure_signals = [
+                            'action failed',
+                            'could not',
+                            'token failed',
+                            'oauth',
+                            'not executed',
+                            'gmail mcp tool',
+                            'gmail mcp server',
+                            "isn't available",
+                            'not available',
+                            'request to https://oauth2.googleapis.com/token failed',
+                            'error:'
+                        ]
+                        has_failure_signal = any(signal in output_lower for signal in failure_signals)
+
+                        # Explicit: fail if missing JSON AND mentioned missing MCP tool/server
+                        if has_failure_signal or 'no gmail mcp' in output_lower:
+                            self.logger.error(f"MCP action reported explicit failure via {mcp_server}")
+                            return {
+                                'success': False,
+                                'error': output[:500],
+                                'output': output[:500],
+                                'returncode': process.returncode
+                            }
+
+                        # Accept plain-text success if clear success indicators present
+                        if has_success_signal:
+                            self.logger.info(f"MCP action executed successfully via {mcp_server} [plain-text success]")
+                            return {
+                                'success': True,
+                                'output': output[:500],
+                                'returncode': process.returncode
+                            }
+
+                        self.logger.error(f"MCP action did not return recognizable JSON or success signal, treated as failure")
                         return {
                             'success': False,
                             'error': output[:500],
                             'output': output[:500],
                             'returncode': process.returncode
                         }
-
-                    self.logger.info(f"MCP action executed successfully via {mcp_server}")
-                    return {
-                        'success': True,
-                        'output': output[:500],  # Limit output length
-                        'returncode': process.returncode
-                    }
 
                 self.logger.error(f"MCP action failed via {mcp_server}: {stderr}")
                 return {
