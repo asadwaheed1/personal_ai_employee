@@ -354,13 +354,22 @@ Execute the specified MCP action and return the result.
                 try:
                     stdout, stderr = process.communicate(timeout=300)
                 except subprocess.TimeoutExpired:
+                    # Kill entire process group (includes gmail-mcp-server children)
                     try:
-                        os.killpg(process.pid, signal.SIGTERM)
-                        time.sleep(2)
-                        if process.poll() is None:
-                            os.killpg(process.pid, signal.SIGKILL)
-                    except Exception:
-                        pass
+                        pgid = os.getpgid(process.pid)
+                        os.killpg(pgid, signal.SIGTERM)
+                    except OSError:
+                        process.terminate()
+                    # Drain pipes — required to reap zombie and unblock parent
+                    try:
+                        stdout, stderr = process.communicate(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        try:
+                            pgid = os.getpgid(process.pid)
+                            os.killpg(pgid, signal.SIGKILL)
+                        except OSError:
+                            process.kill()
+                        stdout, stderr = process.communicate()
                     self.logger.error(f"MCP action timed out via {mcp_server}")
                     return {'success': False, 'error': 'Timeout executing MCP action'}
 
@@ -382,10 +391,23 @@ Execute the specified MCP action and return the result.
                         # Check for explicit success indicators in plain text
                         success_signals = [
                             'successfully',
+                            'successful',
+                            'success',
                             'sent successfully',
                             'executed successfully',
                             'message id:',
-                            'completed successfully'
+                            'completed successfully',
+                            'auth verified',
+                            'authentication healthy',
+                            'token refresh work',
+                            # Gmail plain-text responses
+                            'marked as read',
+                            'label removed',
+                            'reply sent',
+                            'draft created',
+                            'mcp action marked complete',
+                            'has been marked',
+                            'been archived',
                         ]
                         has_success_signal = any(signal in output_lower for signal in success_signals)
 

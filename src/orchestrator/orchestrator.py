@@ -233,13 +233,21 @@ All files have been processed and moved to appropriate folders.
             try:
                 stdout, stderr = process.communicate(timeout=300)
             except subprocess.TimeoutExpired:
+                # Kill entire process group, then drain pipes to reap zombie
                 try:
-                    os.killpg(process.pid, signal.SIGTERM)
-                    time.sleep(2)
-                    if process.poll() is None:
-                        os.killpg(process.pid, signal.SIGKILL)
-                except Exception:
-                    pass
+                    pgid = os.getpgid(process.pid)
+                    os.killpg(pgid, signal.SIGTERM)
+                except OSError:
+                    process.terminate()
+                try:
+                    stdout, stderr = process.communicate(timeout=10)
+                except subprocess.TimeoutExpired:
+                    try:
+                        pgid = os.getpgid(process.pid)
+                        os.killpg(pgid, signal.SIGKILL)
+                    except OSError:
+                        process.kill()
+                    stdout, stderr = process.communicate()
                 self.logger.error('Claude processing timed out')
                 return False
 

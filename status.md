@@ -3,7 +3,7 @@
 **Last Updated:** 2026-04-22  
 **Current Branch:** silver-imp  
 **Target Tier:** Silver  
-**Overall Status:** ✅ Silver requirements complete; dashboard noise reduction, event-driven updates, and LinkedIn calendar default time updated to 12 PM.
+**Overall Status:** ✅ Silver requirements complete; approved-email MCP routing fixed; subprocess kill hardened to prevent orphan processes.
 
 ---
 
@@ -24,7 +24,20 @@
 
 ## ✅ Latest Confirmed Outcomes (2026-04-22)
 
-1. Dashboard update behavior changed to event-driven only:
+1. **Approved-email MCP routing fixed** (`process_approved_actions.py`):
+   - `type: email` files in `Approved/` now route to `process_email_actions.py` skill instead of falling through to "generic" handler.
+   - `process_email_actions.py` parses Human Notes (reply body) + checked Suggested Actions, creates `MCP_EMAIL_*.json` files in `Needs_Action/`, archives email to `Done/PROCESSED_*`.
+   - MCP processor executes JSON files via Gmail MCP server in next orchestrator cycle (mark_as_read, reply, draft_reply, archive, delete).
+   - Archive double-write prevented: main loop skips `_archive_approval_file` when status is `mcp_queued` (skill already moved file).
+   - Cron fallback (`*/15 * * * *`) now also routes correctly via same code path.
+
+2. **Subprocess kill hardened** (`mcp_processor.py`, `orchestrator.py`):
+   - Old pattern: `os.killpg(process.pid, SIGTERM)` + `time.sleep(2)` left orphan processes (pipes never drained, zombie risk).
+   - New pattern: `os.getpgid(process.pid)` → `SIGTERM` to whole process group → `communicate(timeout=10)` to drain pipes → `SIGKILL` fallback if still alive → final `communicate()` to reap.
+   - Eliminates orphan `claude` + `gmail-mcp-server` child processes after timeout.
+   - Orchestrator monitoring loop unblocks correctly after 300s MCP timeout instead of hanging indefinitely.
+
+3. Dashboard update behavior changed to event-driven only:
    - `watcher_manager` no longer writes `Dashboard.md` on every poll loop iteration.
    - Dashboard updates only when files are actually processed (moved between folders) or a watcher is restarted.
    - Gmail/LinkedIn watchers now immediately update dashboard after detecting new items (`_notify_dashboard` in `base_watcher.py`).
@@ -147,26 +160,13 @@
 
 ## 📋 Next Steps (Prioritized)
 
-### Immediate (2026-04-20 onward)
-1. **Keep Gmail MCP startup preflight mandatory (no bypass)**
-   - Treat startup as failed if preflight fails; do not run automation until healthy preflight.
-2. **Publish incident runbook for transient Gmail MCP auth-refresh failures**
-   - Include triage order: direct `gmail_get_profile` check → DNS/HTTPS/proxy checks → restart validation.
-   - Include fallback re-auth/reset steps only after transport/session checks.
-3. **Add bounded retry/backoff in Gmail MCP preflight check**
-   - Reduce false startup aborts from short-lived token-endpoint/network blips.
-4. **Run one strict HITL sensitive-email E2E drill after preflight pass**
-   - Gmail input → `Pending_Approval` → `Approved` → MCP execution.
-   - Verify real Gmail side effects (mark read/archive/reply) and matching Done artifacts.
-5. **Stabilize `Needs_Action` drain behavior for important/uncertain emails**
-   - Decide explicit policy: keep in `Needs_Action`, auto-route to `Pending_Approval`, or trigger manual-review task generation.
-   - Prevent repeated "auto-processing completed" loops with unchanged review-only email set.
-6. **Dashboard truthfulness hardening (action-level audit trail)**
-   - Add per-item action trace (file name + action taken + destination folder) in Recent Activity.
-   - Surface MCP final execution outcomes from `Done/EXECUTED_MCP_*.json` separately from queue-time counts.
-7. **Validate live dashboard updates end-to-end after watcher restart**
-   - Confirm updates appear when files enter `Needs_Action`, `Approved`, and when results land in `Done`.
-   - Confirm new orchestrator counters match real folder transitions.
+### Immediate (2026-04-22 onward)
+1. **Run strict HITL E2E drill** — place email in `Approved/` with Human Notes reply body, verify: MCP JSON created → Gmail MCP executes reply + mark_as_read → `Done/PROCESSED_*` + `Done/EXECUTED_MCP_*` artifacts present.
+2. **Keep Gmail MCP startup preflight mandatory (no bypass)** — treat startup as failed if preflight fails.
+3. **Add bounded retry/backoff in Gmail MCP preflight** — reduce false startup aborts from short-lived network blips.
+4. **Stabilize `Needs_Action` drain for important/uncertain emails** — decide policy: keep, auto-route to `Pending_Approval`, or generate manual-review task. Prevent repeated "auto-processing completed" loops with unchanged review set.
+5. **Dashboard truthfulness hardening** — surface MCP final execution outcomes from `Done/EXECUTED_MCP_*.json` separately from queue-time counts; add per-item action trace in Recent Activity.
+6. **Publish incident runbook for transient Gmail MCP auth-refresh failures** — triage order: `gmail_get_profile` check → DNS/HTTPS → restart validation → re-auth steps.
 
 ### Follow-up
 1. **LinkedIn regression checks**
@@ -202,6 +202,7 @@
 ### Skills
 - `src/orchestrator/skills/send_email.py`
 - `src/orchestrator/skills/process_email_actions.py`
+- `src/orchestrator/skills/process_approved_actions.py`
 - `src/orchestrator/skills/post_linkedin.py`
 - `src/orchestrator/skills/linkedin_api_client.py`
 - `src/orchestrator/skills/gmail_retry_handler.py`
