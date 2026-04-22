@@ -50,6 +50,13 @@ class Orchestrator:
         # Initialize MCP processor for Silver Tier
         self.mcp_processor = MCPProcessor(str(vault_path))
 
+        # Track last reported counts per event type to suppress duplicate dashboard entries
+        self._last_auto_process_counts = None
+        self._last_needs_action_count = None
+        self._last_approved_count = None
+        self._last_inbox_count = None
+        self._last_mcp_counts = None
+
     def _setup_logging(self):
         """Configure logging"""
         log_dir = self.vault_path / 'Logs'
@@ -267,10 +274,12 @@ All files have been processed and moved to appropriate folders.
             return True
 
         self.logger.info(f'Processing {len(files)} files in Needs_Action')
-        self._log_dashboard_event(
-            activity_log=f"Needs_Action intake: {len(files)} file(s) detected",
-            summary=f"Processing {len(files)} item(s) from Needs_Action"
-        )
+        if len(files) != self._last_needs_action_count:
+            self._last_needs_action_count = len(files)
+            self._log_dashboard_event(
+                activity_log=f"Needs_Action intake: {len(files)} file(s) detected",
+                summary=f"Processing {len(files)} item(s) from Needs_Action"
+            )
 
         # Auto-process newsletter/promotional emails first
         email_files = [f for f in files if f.name.startswith('EMAIL_') and f.suffix == '.md']
@@ -322,18 +331,21 @@ All files have been processed and moved to appropriate folders.
                         f'kept_for_review={kept_for_review}, '
                         f'moved_to_pending_approval={moved_to_pending}'
                     )
-                    self._log_dashboard_event(
-                        activity_log=(
-                            f"Email auto-processing: processed={processed}, "
-                            f"kept_for_review={kept_for_review}, "
-                            f"moved_to_pending_approval={moved_to_pending}"
-                        ),
-                        summary=(
-                            f"Needs_Action email cycle complete: {processed} auto-processed, "
-                            f"{kept_for_review} kept for review, "
-                            f"{moved_to_pending} moved to Pending_Approval"
+                    current_counts = (processed, kept_for_review, moved_to_pending)
+                    if current_counts != self._last_auto_process_counts:
+                        self._last_auto_process_counts = current_counts
+                        self._log_dashboard_event(
+                            activity_log=(
+                                f"Email auto-processing: processed={processed}, "
+                                f"kept_for_review={kept_for_review}, "
+                                f"moved_to_pending_approval={moved_to_pending}"
+                            ),
+                            summary=(
+                                f"Needs_Action email cycle complete: {processed} auto-processed, "
+                                f"{kept_for_review} kept for review, "
+                                f"{moved_to_pending} moved to Pending_Approval"
+                            )
                         )
-                    )
                     summary_logged = True
                 except Exception:
                     pass
@@ -369,16 +381,19 @@ All files have been processed and moved to appropriate folders.
             results = self.mcp_processor.process_pending_actions()
 
             self.logger.info(f"MCP processing complete: {results['successful']} successful, {results['failed']} failed")
-            self._log_dashboard_event(
-                activity_log=(
-                    f"MCP actions executed: {results['successful']} success, "
-                    f"{results['failed']} failed"
-                ),
-                summary=(
-                    f"Done updates from MCP: {results['successful']} executed, "
-                    f"{results['failed']} failed"
+            mcp_counts = (results['successful'], results['failed'])
+            if mcp_counts != self._last_mcp_counts:
+                self._last_mcp_counts = mcp_counts
+                self._log_dashboard_event(
+                    activity_log=(
+                        f"MCP actions executed: {results['successful']} success, "
+                        f"{results['failed']} failed"
+                    ),
+                    summary=(
+                        f"Done updates from MCP: {results['successful']} executed, "
+                        f"{results['failed']} failed"
+                    )
                 )
-            )
 
             # Return True if at least some succeeded, or if there were no failures
             return results['failed'] == 0 or results['successful'] > 0
@@ -393,10 +408,12 @@ All files have been processed and moved to appropriate folders.
             return True
 
         self.logger.info(f'Executing {len(files)} approved actions')
-        self._log_dashboard_event(
-            activity_log=f"Approved intake: {len(files)} file(s) ready for execution",
-            summary=f"Executing {len(files)} approved action(s)"
-        )
+        if len(files) != self._last_approved_count:
+            self._last_approved_count = len(files)
+            self._log_dashboard_event(
+                activity_log=f"Approved intake: {len(files)} file(s) ready for execution",
+                summary=f"Executing {len(files)} approved action(s)"
+            )
 
         success_count = 0
         for file_path in files:
@@ -466,19 +483,21 @@ All files have been processed and moved to appropriate folders.
             return True
 
         self.logger.info(f'Processing {len(files)} files in Inbox')
-        self._log_dashboard_event(
-            activity_log=f"Inbox intake: {len(files)} new file(s)",
-            summary=f"Processing {len(files)} new Inbox item(s)"
-        )
+        if len(files) != self._last_inbox_count:
+            self._last_inbox_count = len(files)
+            self._log_dashboard_event(
+                activity_log=f"Inbox intake: {len(files)} new file(s)",
+                summary=f"Processing {len(files)} new Inbox item(s)"
+            )
         context = f'Process {len(files)} items from /Inbox/ folder'
         return self._trigger_claude_processing(context)
 
-    def check_and_trigger(self):
-        """Check for new files and trigger Claude if any exist"""
+    def check_and_trigger(self) -> bool:
+        """Check for new files and trigger Claude if any exist. Returns True if files were processed."""
         # Try to acquire processing lock
         if not self._acquire_processing_lock():
             self.logger.debug('Another processing instance is running, skipping...')
-            return
+            return False
 
         try:
             files = self._get_files_to_process()
@@ -487,7 +506,7 @@ All files have been processed and moved to appropriate folders.
 
             if total_files == 0:
                 self.logger.debug('No files to process')
-                return
+                return False
 
             self.logger.info(f'Found {total_files} total files to process')
 
@@ -510,6 +529,8 @@ All files have been processed and moved to appropriate folders.
             if success:
                 self.last_processed['processed_count'] = self.last_processed.get('processed_count', 0) + total_files
                 self._save_state()
+
+            return True
 
         finally:
             self._release_processing_lock()

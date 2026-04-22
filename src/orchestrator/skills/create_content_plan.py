@@ -170,7 +170,7 @@ class CreateContentPlanSkill(BaseSkill):
 
         # Optimal posting times (based on LinkedIn best practices)
         optimal_times = [
-            (9, 0),   # 9 AM - Morning engagement
+            (12, 0),  # 12 PM - Lunch break
             (12, 0),  # 12 PM - Lunch break
             (17, 0),  # 5 PM - End of workday
             (19, 0),  # 7 PM - Evening browsing

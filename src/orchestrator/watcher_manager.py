@@ -273,21 +273,24 @@ class WatcherManager:
             while self.running:
                 # Health check and auto-restart watchers
                 failed = self.health_check()
+                watcher_restarted = bool(failed)
                 if failed:
                     self.logger.info(f"Found {len(failed)} failed watchers, auto-restarting...")
                     self.auto_restart_failed()
 
                 # Run orchestrator to process files
+                files_processed = False
                 try:
-                    self.orchestrator.check_and_trigger()
+                    files_processed = self.orchestrator.check_and_trigger()
                 except Exception as e:
                     self.logger.error(f"Orchestrator error: {e}", exc_info=True)
 
                 # Save state
                 self.save_state()
 
-                # Update Dashboard
-                self._update_dashboard()
+                # Only update dashboard when files moved or a watcher was restarted
+                if files_processed or watcher_restarted:
+                    self._update_dashboard()
 
                 time.sleep(check_interval)
 

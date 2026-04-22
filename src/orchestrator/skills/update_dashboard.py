@@ -137,35 +137,35 @@ System is operational and ready to process tasks.
         return content
 
     def _add_activity(self, content: str, activity: str) -> str:
-        """Add activity to the recent activity section"""
+        """Add activity to the recent activity section, keeping only the last 25 entries."""
+        MAX_ENTRIES = 25
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
         activity_line = f"- [{timestamp}] {activity}"
 
         if "## Recent Activity" in content:
-            # Add to existing section
             lines = content.split('\n')
-            insert_pos = None
+            section_start = None
+            section_end = len(lines)
 
             for i, line in enumerate(lines):
                 if line.startswith("## Recent Activity"):
-                    # Find where to insert (after header, before next section)
-                    for j in range(i+1, len(lines)):
-                        if lines[j].startswith('#'):
-                            insert_pos = j
-                            break
-                        elif lines[j].strip() == "" and j > i+1:
-                            insert_pos = j
-                            break
-
-                    if insert_pos is None:
-                        insert_pos = len(lines)
-
-                    lines.insert(insert_pos, activity_line)
+                    section_start = i
+                elif section_start is not None and line.startswith('#'):
+                    section_end = i
                     break
+
+            if section_start is not None:
+                # Collect existing entries from this section
+                entries = [l for l in lines[section_start + 1:section_end] if l.strip().startswith('-')]
+                # Prepend new entry and trim to MAX_ENTRIES
+                entries = [activity_line] + entries
+                entries = entries[:MAX_ENTRIES]
+                # Rebuild section
+                new_section = [lines[section_start]] + entries
+                lines = lines[:section_start] + new_section + lines[section_end:]
 
             content = '\n'.join(lines)
         else:
-            # Add new section
             content += f"\n\n## Recent Activity\n{activity_line}"
 
         return content

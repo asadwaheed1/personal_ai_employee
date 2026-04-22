@@ -1,9 +1,9 @@
 # Personal AI Employee - Project Status
 
-**Last Updated:** 2026-04-21 (afternoon)  
+**Last Updated:** 2026-04-22  
 **Current Branch:** silver-imp  
 **Target Tier:** Silver  
-**Overall Status:** ✅ Silver requirements complete; startup/runtime hardening + approved-email execution/reporting fixes applied and validated.
+**Overall Status:** ✅ Silver requirements complete; dashboard noise reduction, event-driven updates, and LinkedIn calendar default time updated to 12 PM.
 
 ---
 
@@ -22,7 +22,25 @@
 
 ---
 
-## ✅ Latest Confirmed Outcomes (2026-04-21)
+## ✅ Latest Confirmed Outcomes (2026-04-22)
+
+1. Dashboard update behavior changed to event-driven only:
+   - `watcher_manager` no longer writes `Dashboard.md` on every poll loop iteration.
+   - Dashboard updates only when files are actually processed (moved between folders) or a watcher is restarted.
+   - Gmail/LinkedIn watchers now immediately update dashboard after detecting new items (`_notify_dashboard` in `base_watcher.py`).
+2. Dashboard Recent Activity deduplication applied:
+   - All intake events (`Needs_Action`, `Inbox`, `Approved`, `MCP`, `Email auto-processing`) now track last-reported counts in orchestrator instance state.
+   - Dashboard entry is only written when a count actually changes (e.g., 31→32), not on every identical poll cycle.
+3. Recent Activity capped at 25 entries, newest on top:
+   - `_add_activity` in `update_dashboard.py` prepends new entries and trims list to 25.
+4. LinkedIn content calendar default posting time changed from 9 AM to 12 PM:
+   - `optimal_times` list in `create_content_plan.py` updated; all future generated calendars start at 12 PM.
+   - All existing calendar entries in W15, W16, W17 (JSON + MD files) backfilled to `T12:00:00`.
+   - `Dashboard.md` content schedule reference also updated.
+
+---
+
+## ✅ Previously Confirmed Outcomes (2026-04-21)
 
 1. Confirmed startup preflight gate correctly blocks runtime when Gmail MCP auth-refresh fails:
    - Failure observed in watcher manager logs: `❌ STARTUP PREFLIGHT FAILED: Gmail MCP authentication check failed`
