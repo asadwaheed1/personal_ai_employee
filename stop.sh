@@ -33,7 +33,21 @@ if [ -d "$PID_DIR" ]; then
     done
 fi
 
-# Also kill watchdog if running
+# Also kill watcher manager if running
+MANAGER_PID=$(pgrep -f "src.orchestrator.watcher_manager" || true)
+if [ ! -z "$MANAGER_PID" ]; then
+    echo "Stopping watcher manager (PID: $MANAGER_PID)..."
+    kill $MANAGER_PID 2>/dev/null || true
+fi
+
+# Kill watcher processes started by watcher manager
+WATCHER_PIDS=$(pgrep -f "src.watchers.run_(filesystem|gmail|linkedin)_watcher" || true)
+if [ ! -z "$WATCHER_PIDS" ]; then
+    echo "Stopping watcher processes..."
+    kill $WATCHER_PIDS 2>/dev/null || true
+fi
+
+# Backward compatibility: also kill legacy watchdog if running
 WATCHDOG_PID=$(pgrep -f "watchdog.py" || true)
 if [ ! -z "$WATCHDOG_PID" ]; then
     echo "Stopping watchdog (PID: $WATCHDOG_PID)..."

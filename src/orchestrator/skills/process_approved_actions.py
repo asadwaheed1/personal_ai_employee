@@ -5,12 +5,17 @@ Executes approved actions from the Approved folder
 """
 
 import json
+import re
+import subprocess
 import sys
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any
 
-from base_skill import BaseSkill, run_skill
+try:
+    from .base_skill import BaseSkill, run_skill
+except ImportError:
+    from base_skill import BaseSkill, run_skill
 
 
 class ProcessApprovedActionsSkill(BaseSkill):
@@ -51,14 +56,20 @@ class ProcessApprovedActionsSkill(BaseSkill):
                 # Execute the approved action
                 result = self._execute_approved_action(approval_data, content)
 
+                action_label = approval_data.get('type') or approval_data.get('action', 'unknown')
                 execution_results.append({
                     "file": file_path.name,
-                    "action": approval_data.get('action', 'unknown'),
+                    "action": action_label,
                     "result": result
                 })
 
-                # Move original approval file to Done with execution summary
-                self._archive_approval_file(file_path, approval_data, result)
+                # mcp_queued: process_email_actions.py already archived the file to Done
+                # For all other cases archive here
+                if result.get('status') != 'mcp_queued':
+                    self._archive_approval_file(file_path, approval_data, result)
+                elif file_path.exists():
+                    # Fallback: file wasn't moved by skill (edge case), archive it
+                    self._archive_approval_file(file_path, approval_data, result)
 
                 processed_count += 1
                 self.logger.info(f"Successfully executed approved action: {file_path.name}")
@@ -86,37 +97,37 @@ class ProcessApprovedActionsSkill(BaseSkill):
         """Parse approval file to extract action details"""
         approval_data = {"id": filename.replace('.md', '')}
 
-        # Extract frontmatter
+        # Extract frontmatter (manual parse to avoid yaml dep)
         if content.startswith('---'):
             try:
                 parts = content.split('---', 2)
                 if len(parts) >= 3:
-                    import yaml
-                    metadata = yaml.safe_load(parts[1]) or {}
-                    approval_data.update(metadata)
+                    for line in parts[1].strip().split('\n'):
+                        if ':' in line:
+                            key, value = line.split(':', 1)
+                            approval_data[key.strip()] = value.strip()
             except Exception as e:
                 self.logger.warning(f"Failed to parse approval metadata: {e}")
 
-        # Extract action type from content
-        import re
+        # Extract action type from content (approval request files)
         action_match = re.search(r'Action Type:\s*(.+?)\n', content)
         if action_match:
             approval_data['action'] = action_match.group(1).strip()
-
-        # Extract decision
-        decision_match = re.search(r'- \[x\] (\*\*Approved\*\*|\*\*Rejected\*\*)', content)
-        if decision_match:
-            approval_data['decision'] = decision_match.group(1)
 
         return approval_data
 
     def _execute_approved_action(self, approval_data: Dict[str, Any], content: str) -> Dict[str, Any]:
         """Execute the approved action based on type"""
-        action_type = approval_data.get('action', '').lower()
+        file_type = approval_data.get('type', '').lower()
 
+        # Gmail watcher email files (type: email) — queue via MCP
+        if file_type == 'email':
+            return self._execute_approved_email_via_mcp(approval_data, content)
+
+        action_type = approval_data.get('action', '').lower()
         if 'payment' in action_type:
             return self._execute_payment_action(approval_data, content)
-        elif 'email' in action_type:
+        elif 'email' in action_type or action_type == 'send_email':
             return self._execute_email_action(approval_data, content)
         elif 'file' in action_type or 'delete' in action_type:
             return self._execute_file_action(approval_data, content)
@@ -125,63 +136,103 @@ class ProcessApprovedActionsSkill(BaseSkill):
         else:
             return self._execute_generic_action(approval_data, content)
 
-    def _execute_payment_action(self, approval_data: Dict[str, Any], content: str) -> Dict[str, Any]:
-        """Execute a payment action (Bronze tier - logging only)"""
-        # In Bronze tier, we only log the action
-        # Actual payment execution requires MCP servers (Silver/Gold tier)
+    def _execute_approved_email_via_mcp(self, email_data: Dict[str, Any], content: str) -> Dict[str, Any]:
+        """
+        Route approved email file through process_email_actions skill.
+        That skill creates MCP JSON files; the MCP processor executes them
+        via Gmail MCP server in the next orchestrator cycle.
+        """
+        email_file = email_data.get('id', '')
+        # Reconstruct full path: email_data['id'] is filename without .md
+        approved_dir = self.vault_path / 'Approved'
+        email_path = approved_dir / f"{email_file}.md"
 
+        if not email_path.exists():
+            # Try to find by id in Approved folder
+            matches = list(approved_dir.glob(f"{email_file}*"))
+            if matches:
+                email_path = matches[0]
+            else:
+                return {'status': 'failed', 'error': f'Email file not found: {email_file}'}
+
+        skill_path = Path(__file__).parent / 'process_email_actions.py'
+        if not skill_path.exists():
+            return {'status': 'failed', 'error': f'process_email_actions.py not found at {skill_path}'}
+
+        params = {
+            'email_file': str(email_path),
+            'vault_path': str(self.vault_path)
+        }
+
+        self.logger.info(f"Routing approved email to MCP queue: {email_path.name}")
+
+        try:
+            result = subprocess.run(
+                [sys.executable, str(skill_path), json.dumps(params)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                cwd=str(self.vault_path.parent)
+            )
+
+            if result.returncode == 0:
+                try:
+                    payload = json.loads(result.stdout)
+                    skill_result = payload.get('result', payload)
+                    queued = skill_result.get('actions_queued', 0)
+                    self.logger.info(f"Email MCP actions queued: {queued}")
+                    return {
+                        'status': 'mcp_queued',
+                        'message': f'Email actions queued for MCP execution ({queued} actions)',
+                        'actions_queued': queued
+                    }
+                except Exception:
+                    return {'status': 'mcp_queued', 'message': 'Email actions queued for MCP execution'}
+            else:
+                self.logger.error(f"process_email_actions failed: {result.stderr[:300]}")
+                return {'status': 'failed', 'error': result.stderr[:300]}
+
+        except subprocess.TimeoutExpired:
+            self.logger.error("process_email_actions timed out (60s)")
+            return {'status': 'failed', 'error': 'Skill timeout after 60s'}
+        except Exception as e:
+            self.logger.error(f"Failed to route email to MCP: {e}", exc_info=True)
+            return {'status': 'failed', 'error': str(e)}
+
+    def _execute_payment_action(self, approval_data: Dict[str, Any], content: str) -> Dict[str, Any]:
         return {
             "status": "logged",
-            "message": "Payment action approved and logged (MCP execution requires Silver tier)",
+            "message": "Payment action approved and logged",
             "action": "payment",
             "details": approval_data
         }
 
     def _execute_email_action(self, approval_data: Dict[str, Any], content: str) -> Dict[str, Any]:
-        """Execute an email action (Bronze tier - logging only)"""
-        # In Bronze tier, we only log the action
-        # Actual email sending requires MCP servers (Silver/Gold tier)
-
         return {
             "status": "logged",
-            "message": "Email action approved and logged (MCP execution requires Silver tier)",
+            "message": "Email send action approved and logged",
             "action": "email",
             "details": approval_data
         }
 
     def _execute_file_action(self, approval_data: Dict[str, Any], content: str) -> Dict[str, Any]:
-        """Execute a file-related action"""
-        # For Bronze tier, we can handle basic file operations
-
         action = approval_data.get('action', '')
-
-        if 'delete' in action:
-            # Log deletion for now (actual deletion would be handled by orchestrator)
-            return {
-                "status": "logged",
-                "message": "File deletion approved - logged for execution",
-                "action": "file_delete",
-                "details": approval_data
-            }
-        else:
-            return {
-                "status": "logged",
-                "message": "File action approved and logged",
-                "action": action,
-                "details": approval_data
-            }
-
-    def _execute_system_action(self, approval_data: Dict[str, Any], content: str) -> Dict[str, Any]:
-        """Execute a system-related action"""
         return {
             "status": "logged",
-            "message": "System change approved - logged for execution",
+            "message": "File action approved and logged",
+            "action": action or "file",
+            "details": approval_data
+        }
+
+    def _execute_system_action(self, approval_data: Dict[str, Any], content: str) -> Dict[str, Any]:
+        return {
+            "status": "logged",
+            "message": "System change approved and logged",
             "action": "system_change",
             "details": approval_data
         }
 
     def _execute_generic_action(self, approval_data: Dict[str, Any], content: str) -> Dict[str, Any]:
-        """Execute a generic approved action"""
         return {
             "status": "completed",
             "message": "Generic action approved and processed",
@@ -195,6 +246,18 @@ class ProcessApprovedActionsSkill(BaseSkill):
 
         # Add execution summary
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+        # Convert result to JSON-serializable format
+        def json_serializable(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            raise TypeError(f"Type {type(obj)} not serializable")
+
+        try:
+            result_json = json.dumps(result, indent=2, default=json_serializable)
+        except Exception as e:
+            result_json = json.dumps({"error": f"Could not serialize result: {str(e)}"})
+
         summary = f"""
 
 ---
@@ -205,7 +268,7 @@ class ProcessApprovedActionsSkill(BaseSkill):
 
 ### Execution Details
 ```json
-{json.dumps(result, indent=2)}
+{result_json}
 ```
 """
 

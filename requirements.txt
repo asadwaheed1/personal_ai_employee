@@ -1,13 +1,19 @@
-# AI Employee - Bronze Tier Requirements
+# AI Employee - Silver Tier Requirements
 
 # Core dependencies
 watchdog>=3.0.0
 psutil>=5.9.0
 pyyaml>=6.0
+python-dotenv>=1.0.0
 
-# Optional dependencies for Silver/Gold tier (commented out for Bronze)
-# google-auth>=2.0.0
-# google-auth-oauthlib>=1.0.0
-# google-auth-httplib2>=0.1.0
-# google-api-python-client>=2.0.0
+# Gmail API dependencies
+google-auth>=2.22.0
+google-auth-oauthlib>=1.0.0
+google-auth-httplib2>=0.1.0
+google-api-python-client>=2.95.0
+
+# LinkedIn API (Official REST API - recommended)
+requests>=2.31.0
+
+# Browser automation for LinkedIn (legacy fallback - not recommended)
 # playwright>=1.40.0

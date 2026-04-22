@@ -3,7 +3,7 @@
 An intelligent automation system that processes tasks, manages workflows, and integrates with Obsidian for visual task management. Built with Claude Code and designed for personal productivity and business automation.
 
 ![Status](https://img.shields.io/badge/status-production%20ready-brightgreen)
-![Version](https://img.shields.io/badge/version-1.0%20(Bronze%20Tier)-blue)
+![Version](https://img.shields.io/badge/version-2.0%20(Silver%20Tier)-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 
 ---
@@ -12,14 +12,15 @@ An intelligent automation system that processes tasks, manages workflows, and in
 
 The Personal AI Employee is a three-tier automation system designed to handle personal and business tasks with increasing levels of sophistication:
 
-- **Bronze Tier** (Current): File-based task processing with Obsidian integration
-- **Silver Tier** (Planned): Email and calendar integration
-- **Gold Tier** (Planned): Advanced automation with external APIs
+- **Bronze Tier** (Complete): File-based task processing with Obsidian integration
+- **Silver Tier** (Current): Email and LinkedIn automation with MCP integration
+- **Gold Tier** (Planned): Advanced automation with calendar and WhatsApp
 
 ---
 
-## ✨ Features (Bronze Tier)
+## ✨ Features (Silver Tier)
 
+### Core Features (Bronze Tier)
 - ✅ **Automated Task Processing** - Drop markdown files, get results automatically
 - ✅ **Claude Code Integration** - Intelligent task execution with AI reasoning
 - ✅ **Agent Skills Framework** - All AI functionality implemented as modular Agent Skills
@@ -28,7 +29,17 @@ The Personal AI Employee is a three-tier automation system designed to handle pe
 - ✅ **Activity Logging** - Comprehensive logs of all operations
 - ✅ **Human-in-the-Loop** - Approval workflow for sensitive actions
 - ✅ **Configurable Rules** - Customize behavior via Company Handbook
-- ✅ **Live Monitoring** - Real-time log display when running
+
+### New Silver Tier Features
+- ✅ **Gmail Integration** - Automatic email monitoring and processing
+- ✅ **LinkedIn Automation** - Official API posting with OAuth 2.0 token management and approval workflow
+- ✅ **MCP Server Integration** - Gmail MCP server for external actions
+- ✅ **Email Processing Workflow** - Mark as read, archive, reply, delete
+- ✅ **Multi-Watcher System** - Simultaneous monitoring of multiple sources
+- ✅ **Content Calendar** - Automated LinkedIn content planning and posting
+- ✅ **Retry Logic** - Smart retry with exponential backoff for API failures
+- ✅ **Edge Case Handling** - Comprehensive validation and error handling
+- ✅ **Scheduled Tasks** - Cron/Task Scheduler integration for automation
 
 ---
 
@@ -40,6 +51,8 @@ The Personal AI Employee is a three-tier automation system designed to handle pe
 - Claude Code CLI installed
 - Obsidian (optional, for visualization)
 - Linux/Unix environment
+- Gmail API credentials (for email features)
+- LinkedIn account (for LinkedIn features)
 
 ### Installation
 
@@ -51,11 +64,33 @@ cd personal_ai_employee
 # Run setup (creates vault, installs dependencies, configures Obsidian)
 ./setup.sh
 
+# Install additional Silver Tier dependencies
+pip install -r requirements.txt
+playwright install  # optional for legacy/manual browser workflows
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env with your Gmail and LinkedIn credentials
+
+# Setup Gmail API credentials
+# 1. Go to https://console.cloud.google.com/apis/credentials
+# 2. Create OAuth 2.0 credentials
+# 3. Download and save as credentials/gmail_credentials.json
+
+# Setup LinkedIn API OAuth
+python scripts/setup_linkedin_api.py
+# Token saved to credentials/linkedin_api_token.json
+
+# Setup scheduling (optional)
+./scripts/setup_cron.sh  # Linux/Mac
+# OR
+powershell -ExecutionPolicy Bypass -File scripts/setup_task_scheduler.ps1  # Windows
+
 # Start the system
 ./start.sh
 ```
 
-That's it! The system is now monitoring for tasks.
+That's it! The system is now monitoring for tasks and emails.
 
 ### Create Your First Task
 
@@ -110,11 +145,24 @@ personal_ai_employee/
 │       └── bronze_tier_skills.json  # Agent Skills manifest
 │
 ├── src/
+│   ├── watchers/
+│   │   ├── gmail_watcher.py       # Gmail monitoring
+│   │   ├── run_gmail_watcher.py   # Gmail watcher entry point
+│   │   ├── linkedin_watcher.py    # LinkedIn calendar/check automation
+│   │   └── run_linkedin_watcher.py # LinkedIn watcher entry point
+│   │
 │   └── orchestrator/
-│       ├── watchdog.py         # Process monitor
-│       ├── orchestrator.py     # Main orchestrator
-│       └── skills/             # Agent Skills
-│           ├── base_skill.py   # Base class
+│       ├── watchdog.py            # Process monitor
+│       ├── orchestrator.py        # Main orchestrator
+│       ├── watcher_manager.py     # Multi-watcher management
+│       ├── mcp_processor.py       # MCP action processor
+│       └── skills/                # Agent Skills
+│           ├── base_skill.py      # Base class
+│           ├── send_email.py      # Email sending
+│           ├── process_email_actions.py # Email processing
+│           ├── post_linkedin.py   # LinkedIn posting
+│           ├── create_content_plan.py # Content calendar
+│           ├── gmail_retry_handler.py # Retry logic
 │           ├── process_needs_action.py
 │           ├── update_dashboard.py
 │           ├── create_plan.py
@@ -144,7 +192,13 @@ personal_ai_employee/
 | Document | Description |
 |----------|-------------|
 | **[START_HERE.md](START_HERE.md)** | Getting started guide |
-| **[BRONZE_TIER_DOCS.md](BRONZE_TIER_DOCS.md)** | Complete technical documentation |
+| **[SILVER_TIER_TESTING_GUIDE.md](SILVER_TIER_TESTING_GUIDE.md)** | Silver Tier testing guide |
+| **[SILVER_TIER_DEMO.md](SILVER_TIER_DEMO.md)** | Complete demo results |
+| **[EMAIL_WORKFLOW_GUIDE.md](EMAIL_WORKFLOW_GUIDE.md)** | Email processing workflow |
+| **[EMAIL_ACTIONS_GUIDE.md](EMAIL_ACTIONS_GUIDE.md)** | Email actions quick reference |
+| **[LINKEDIN_SETUP_QUICK_REF.md](LINKEDIN_SETUP_QUICK_REF.md)** | LinkedIn OAuth/API setup quick reference |
+| **[LINKEDIN_WATCHER_GUIDE.md](LINKEDIN_WATCHER_GUIDE.md)** | LinkedIn watcher guide |
+| **[BRONZE_TIER_DOCS.md](BRONZE_TIER_DOCS.md)** | Bronze Tier technical docs |
 | **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** | System quick reference |
 | **[AGENT_SKILLS_QUICK_REFERENCE.md](AGENT_SKILLS_QUICK_REFERENCE.md)** | Agent Skills guide |
 | **[AGENT_SKILLS_DOCUMENTATION.md](AGENT_SKILLS_DOCUMENTATION.md)** | Skills technical docs |
@@ -229,10 +283,24 @@ Moves original to Done with timestamp
 ./stop.sh
 
 # Check if running
-ps aux | grep -E "watchdog|orchestrator"
+ps aux | grep -E "watchdog|orchestrator|watcher"
+
+# Start watcher manager (Silver Tier)
+python watcher_manager.py ./ai_employee_vault start
+
+# Check watcher status
+python watcher_manager.py ./ai_employee_vault status
+
+# Stop watchers
+python watcher_manager.py ./ai_employee_vault stop
+
+# Run MCP processor manually
+python src/orchestrator/mcp_processor.py ./ai_employee_vault
 
 # View live logs
 tail -f ai_employee_vault/Logs/orchestrator_$(date +%Y-%m-%d).log
+tail -f ai_employee_vault/Logs/gmail_watcher_$(date +%Y-%m-%d).log
+tail -f ai_employee_vault/Logs/mcp_processor_$(date +%Y-%m-%d).log
 
 # Check Dashboard
 cat ai_employee_vault/Dashboard.md
@@ -292,20 +360,24 @@ See [BRONZE_TIER_DOCS.md](BRONZE_TIER_DOCS.md) for complete troubleshooting guid
 - Obsidian vault
 - Dashboard and logging
 - Human-in-the-loop approval
+- Agent Skills framework
 
-### 🚧 Silver Tier (Planned)
-- Gmail integration
-- Calendar sync
-- WhatsApp monitoring
-- Automated email responses
-- Advanced task templates
+### ✅ Silver Tier (Complete)
+- Gmail integration with MCP server
+- LinkedIn API posting and calendar-driven automation
+- Email processing workflow (mark read, archive, reply, delete)
+- Multi-watcher system
+- Content calendar automation
+- Retry logic and edge case handling
+- Scheduled task execution
 
-### 🔮 Gold Tier (Future)
-- External API integrations
+### 🚧 Gold Tier (Planned)
+- WhatsApp integration
+- Calendar sync (Google Calendar)
+- Advanced analytics and reporting
 - Multi-user support
-- Advanced analytics
-- Custom workflows
-- Mobile app
+- Custom workflow builder
+- Mobile app integration
 
 ---
 
@@ -355,4 +427,4 @@ Perfect for learning about AI-native development and personal automation systems
 
 ---
 
-**Personal AI Employee** | Bronze Tier v1.0 | Production Ready | 2026-03-28
+**Personal AI Employee** | Silver Tier v2.0 | Production Ready | 2026-04-03

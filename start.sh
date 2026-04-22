@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Start script for AI Employee Bronze Tier
+# Start script for AI Employee (all watchers via Watcher Manager)
 
 set -e
 
@@ -13,6 +13,20 @@ echo "=== Starting AI Employee System ==="
 echo ""
 echo "Vault: $VAULT_PATH"
 echo ""
+
+# Prevent duplicate watcher manager instances
+EXISTING_MANAGER_PID=$(pgrep -f "src.orchestrator.watcher_manager .*${VAULT_PATH} start" | head -n 1 || true)
+if [ -n "$EXISTING_MANAGER_PID" ]; then
+    echo "Watcher manager already running (PID: $EXISTING_MANAGER_PID)"
+    echo "Stop first with ./stop.sh, or check logs in $VAULT_PATH/Logs"
+    exit 1
+fi
+
+# Prevent duplicate live log tailers
+EXISTING_TAIL_PID=$(pgrep -f "tail -f $VAULT_PATH/Logs/watcher_manager_" | head -n 1 || true)
+if [ -n "$EXISTING_TAIL_PID" ]; then
+    kill "$EXISTING_TAIL_PID" 2>/dev/null || true
+fi
 
 # Check if vault exists
 if [ ! -d "$VAULT_PATH" ]; then
@@ -28,12 +42,12 @@ if [ ! -d "$PROJECT_ROOT/venv" ]; then
     exit 1
 fi
 
-# Start the watchdog (which will start all other processes)
-echo "Starting watchdog process..."
-"$PROJECT_ROOT/venv/bin/python" "$PROJECT_ROOT/src/orchestrator/watchdog.py" "$VAULT_PATH" 60 &
-WATCHDOG_PID=$!
+# Start Watcher Manager (starts filesystem, Gmail, and LinkedIn watchers)
+echo "Starting watcher manager..."
+"$PROJECT_ROOT/venv/bin/python" -m src.orchestrator.watcher_manager "$VAULT_PATH" start &
+MANAGER_PID=$!
 
-echo "✓ Watchdog started (PID: $WATCHDOG_PID)"
+echo "✓ Watcher manager started (PID: $MANAGER_PID)"
 echo ""
 echo "System is now running!"
 echo ""
@@ -50,15 +64,15 @@ echo ""
 echo "=== Live Activity Log ==="
 echo ""
 
-# Wait for orchestrator log file to be created
+# Wait for watcher manager log file to be created
 sleep 2
 
-# Tail the orchestrator log to show real-time activity
-LOG_FILE="$VAULT_PATH/Logs/orchestrator_$(date +%Y-%m-%d).log"
+# Tail the watcher manager log to show real-time activity
+LOG_FILE="$VAULT_PATH/Logs/watcher_manager_$(date +%Y-%m-%d).log"
 tail -f "$LOG_FILE" 2>/dev/null &
 TAIL_PID=$!
 
 # Wait for interrupt
-trap "echo ''; echo 'Stopping...'; kill $TAIL_PID 2>/dev/null; kill $WATCHDOG_PID 2>/dev/null; exit 0" INT TERM
+trap "echo ''; echo 'Stopping...'; kill $TAIL_PID 2>/dev/null; kill $MANAGER_PID 2>/dev/null; exit 0" INT TERM
 
-wait $WATCHDOG_PID
+wait $MANAGER_PID

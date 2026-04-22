@@ -149,6 +149,21 @@ class BaseWatcher(ABC):
         """
         pass
 
+    def _notify_dashboard(self, item_count: int):
+        """Update dashboard when new items are detected"""
+        try:
+            import sys
+            sys.path.insert(0, str(Path(__file__).parent.parent / 'orchestrator' / 'skills'))
+            from update_dashboard import UpdateDashboardSkill
+            skill = UpdateDashboardSkill(str(self.vault_path))
+            watcher_name = self.__class__.__name__.replace('Watcher', '')
+            skill.execute({
+                'status': 'operational',
+                'activity_log': f"{watcher_name}: {item_count} new item(s) detected"
+            })
+        except Exception as e:
+            self.logger.warning(f'Failed to notify dashboard: {e}')
+
     def run(self):
         """Main watcher loop"""
         self.logger.info(f'Starting {self.__class__.__name__}')
@@ -173,9 +188,10 @@ class BaseWatcher(ABC):
                     except Exception as e:
                         self.logger.error(f'Failed to create action file: {e}', exc_info=True)
 
-                # Save state after processing batch
+                # Save state and update dashboard after processing batch
                 if items:
                     self._save_state()
+                    self._notify_dashboard(len(items))
 
             except Exception as e:
                 self.logger.error(f'Error in watcher loop: {e}', exc_info=True)
