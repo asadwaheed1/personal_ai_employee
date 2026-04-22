@@ -322,9 +322,7 @@ Contributions welcome! Please:
 
 ## 📝 License
 
-[Your License Here]
-
----
+This project is licensed under the GPL License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
