@@ -99,22 +99,22 @@
 
 ---
 
-### 1.4 Error Recovery & Graceful Degradation Hardening `[ ]`
+### 1.4 Error Recovery & Graceful Degradation Hardening `[x]`
 **What:** Strengthen existing partial coverage. Each component degrades independently.  
 **Why:** Explicit Gold requirement.  
-**How:**
-1. Gmail MCP down → queue outgoing to `Needs_Action/QUEUED_EMAIL_*.json`, retry on next cycle
-2. LinkedIn API down → log to `Logs/`, keep calendar entry as pending, retry next watcher cycle
-3. Orchestrator crash → watchdog.py already restarts; verify restart picks up mid-queue items
-4. Vault locked → write to `/tmp/vault_overflow/`, sync on next run
-5. Add `health_check.py` script: pings Gmail MCP + LinkedIn API, writes status to `Dashboard.md`
-6. Add bounded retry/backoff to Gmail MCP preflight (3 attempts, 10s backoff) — listed in Silver next steps
+**Implementation:**
+1. **Gmail MCP Queuing**: Transient failures queue actions as `QUEUED_MCP_GMAIL_*.json` for auto-retry.
+2. **LinkedIn Resilience**: `post_linkedin.py` returns `retry` status; Orchestrator keeps post in `Approved/`.
+3. **Vault Lock Handling**: Added `_handle_vault_locked` to Orchestrator to log pending counts to `/tmp/vault_overflow/`.
+4. **Overflow Sync**: `_sync_from_overflow` recovers logs when vault is unlocked.
+5. **Health Check**: Created `scripts/health_check.py` to verify Gmail MCP and LinkedIn API status, updates Dashboard.md.
+6. **Preflight**: (Skipped reattempt as per user instruction).
 
-**Files to modify:**
-- `src/orchestrator/orchestrator.py` (overflow queue)
-- `src/watchers/gmail_watcher.py` (retry preflight)
-- `src/watchers/linkedin_watcher.py` (API down handling)
-- `scripts/health_check.py` (new)
+**Files modified:**
+- `src/orchestrator/mcp_processor.py` (Gmail queuing)
+- `src/orchestrator/orchestrator.py` (Vault lock & overflow sync)
+- `src/orchestrator/skills/post_linkedin.py` (Retry status)
+- `scripts/health_check.py` (New)
 
 **Done when:** Killing Gmail MCP mid-run does not crash orchestrator; queued items process on recovery.
 
@@ -122,41 +122,23 @@
 
 ## Phase 2 — Social Platform Integrations (Est. 3-5 days)
 
-### 2.1 Twitter/X Integration `[ ]`
+### 2.1 Twitter/X Integration `[x]`
 **What:** Post tweets, monitor mentions, generate weekly engagement summary.  
 **Why:** Explicit Gold requirement.  
 **API:** Twitter API v2 (Free tier: 1,500 tweet writes/month, read limited)  
-**How:**
-1. Create Twitter developer app at developer.twitter.com → get API keys
-2. Add env vars: `TWITTER_API_KEY`, `TWITTER_API_SECRET`, `TWITTER_ACCESS_TOKEN`, `TWITTER_ACCESS_SECRET`, `TWITTER_BEARER_TOKEN`
-3. Install: `pip install tweepy` → add to `requirements.txt`
-4. Create `src/orchestrator/skills/twitter_api_client.py`:
-   - OAuth 1.0a for write (post tweets)
-   - Bearer token for read (search mentions)
-   - Methods: `post_tweet()`, `get_mentions()`, `get_engagement_stats()`
-5. Create `src/orchestrator/skills/post_twitter.py` skill:
-   - Reads `Content_Calendar/` for Twitter-tagged posts
-   - HITL: creates `Pending_Approval/TWITTER_*.md` before posting
-   - On approval: posts via API, logs to audit
-6. Create `src/watchers/twitter_watcher.py`:
-   - Polls mentions every 15 min (rate limit aware)
-   - Creates `Needs_Action/TWITTER_MENTION_*.md` for important mentions
-7. Extend content calendar schema to include `platform: twitter` entries
-8. Add watcher to `watcher_manager.py`
-9. Add cron: `*/15 * * * *` Twitter mention check
+**Implementation:**
+1. **API Client**: `src/orchestrator/skills/twitter_api_client.py` uses `tweepy` for v2 (tweets/mentions) and v1.1 (media).
+2. **Posting Skill**: `src/orchestrator/skills/post_twitter.py` handles immediate/scheduled/approved tweets.
+3. **Mention Watcher**: `src/watchers/twitter_watcher.py` polls mentions every 15m; creates `Needs_Action` items.
+4. **Lifecycle**: Integrated into `WatcherManager` and `create_content_plan.py`.
 
-**Files to create:**
+**Files created/modified:**
 - `src/orchestrator/skills/twitter_api_client.py`
 - `src/orchestrator/skills/post_twitter.py`
 - `src/watchers/twitter_watcher.py`
 - `src/watchers/run_twitter_watcher.py`
-
-**Files to modify:**
-- `requirements.txt` (add tweepy)
-- `.env` / `.env.example` (Twitter keys)
-- `src/orchestrator/watcher_manager.py` (add Twitter watcher)
-- `src/orchestrator/skills/create_content_plan.py` (multi-platform)
-- `scripts/setup_cron.sh` (Twitter mention cron)
+- `src/orchestrator/watcher_manager.py`
+- `requirements.txt` (added tweepy)
 
 **Done when:** Content calendar entry with `platform: twitter` gets approved → tweet posted → logged in audit.
 
@@ -393,14 +375,15 @@ MAX_ITERATIONS=10
 | Full cross-domain integration (Personal + Business) | 2.3 | `[ ]` |
 | Odoo accounting + MCP integration | 3.1 + 3.2 | `[ ]` |
 | Facebook + Instagram integration | 2.2 | `[ ]` |
-| Twitter/X integration | 2.1 | `[ ]` |
+| Twitter/X integration | 2.1 | `[x]` |
 | Multiple MCP servers | 1.3 | `[x]` |
 | Weekly CEO Briefing generation | 1.2 | `[x]` |
-| Error recovery + graceful degradation | 1.4 | `[ ]` |
+| Error recovery + graceful degradation | 1.4 | `[x]` |
 | Comprehensive audit logging | 4.2 | `[ ]` |
 | Ralph Wiggum autonomous loop | 1.1 | `[x]` |
 | Architecture documentation | 4.1 | `[ ]` |
 | All AI as Agent Skills | ongoing | ✅ (Silver) |
+
 
 ---
 

@@ -17,14 +17,31 @@
 | MCP Processing | ✅ Complete | External email actions executed via MCP workflow |
 | HITL Approval | ✅ Complete | Pending_Approval → Approved/Rejected path |
 | Scheduling | ✅ Complete | Cron installed + scheduled commands smoke-tested |
-| Edge Cases | ✅ Complete | Retry logic, validation, lock cleanup, restart limits |
+| Error recovery hardening | ✅ Complete | Retry logic, validation, overflow queue, health check |
+| Twitter/X Integration | ✅ Complete | Tweepy client, posting skill, mention watcher |
 | Documentation | ✅ Updated | Core setup/testing docs aligned to API-first flow |
 
 ---
 
 ## ✅ Latest Confirmed Outcomes (2026-04-24)
 
-1. **Filesystem MCP server integrated** (task 1.3):
+1. **Twitter/X integration implemented** (task 2.1):
+   - `src/orchestrator/skills/twitter_api_client.py` — uses `tweepy` for API v2 (tweets/mentions) and v1.1 (media).
+   - `src/orchestrator/skills/post_twitter.py` — supports immediate posting, calendar scheduling, and HITL-gated execution.
+   - `src/watchers/twitter_watcher.py` — polls mentions every 15m; creates `Needs_Action/TWITTER_MENTION_*.md` with metrics.
+   - `src/orchestrator/watcher_manager.py` — integrated `twitter_watcher` into the standard lifecycle management.
+   - `create_content_plan.py` — updated to support `platforms: ['linkedin', 'twitter']` generating per-platform calendar entries.
+
+2. **Error recovery & Graceful degradation hardened** (task 1.4):
+
+   - **Gmail MCP Queuing**: Failed Gmail MCP actions with transient errors (timeout, token, network) now renamed to `QUEUED_MCP_GMAIL_*.json` in `Needs_Action/` for autonomous retry.
+   - **LinkedIn Resilience**: `PostLinkedInSkill` now detects transient API errors and returns `status: retry`. Orchestrator skips archiving to `Done/` for these files, leaving them in `Approved/` for the next cycle.
+   - **Vault Lock Handling**: Added `_handle_vault_locked` to Orchestrator. If lock acquisition fails, pending item counts are logged to `/tmp/vault_overflow/`.
+   - **Overflow Synchronization**: `_sync_from_overflow` automatically moves overflow logs back to `vault/Logs/Overflow/` when the vault is successfully unlocked.
+   - **Health Check Utility**: Created `scripts/health_check.py` to verify Gmail MCP and LinkedIn API status, with automatic `Dashboard.md` health-table updates.
+   - Verified: killing network mid-run queues Gmail actions; manual health check correctly reports API status on Dashboard.
+
+2. **Filesystem MCP server integrated** (task 1.3):
    - `.mcp.json` — added `@modelcontextprotocol/server-filesystem` server scoped to vault path.
    - `.claude/settings.local.json` — filesystem server enabled + 10 tool allowlist added.
    - `mcp_processor.py` — `_create_filesystem_instruction` now maps each tool (`read_file`, `write_file`, `list_directory`, `create_directory`, `move_file`, `search_files`, `delete_file`, `get_file_info`) to specific MCP prompts.

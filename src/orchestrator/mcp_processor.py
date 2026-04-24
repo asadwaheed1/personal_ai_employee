@@ -97,7 +97,32 @@ class MCPProcessor:
                 # Update the action file with results
                 action_data['result'] = execution_result
                 action_data['executed_at'] = datetime.now().isoformat()
-                action_data['status'] = 'completed' if execution_result.get('success', False) else 'failed'
+                
+                success = execution_result.get('success', False)
+                action_data['status'] = 'completed' if success else 'failed'
+
+                if not success and action_data.get('mcp_server') == 'gmail':
+                    # Gold Tier: Queue failed Gmail actions for retry if error is likely transient
+                    error_msg = str(execution_result.get('error', '')).lower()
+                    transient_errors = ['timeout', 'token failed', 'oauth', 'connection', 'network', 'could not connect']
+                    is_transient = any(err in error_msg for err in transient_errors)
+                    
+                    if is_transient:
+                        self.logger.warning(f"Transient Gmail error detected, queuing for retry: {file_path.name}")
+                        action_data['status'] = 'queued'
+                        queued_filename = file_path.name.replace('MCP_', 'QUEUED_MCP_GMAIL_')
+                        if 'QUEUED_MCP_GMAIL_' not in queued_filename:
+                            queued_filename = f"QUEUED_MCP_GMAIL_{file_path.name}"
+                        
+                        queued_path = self.needs_action / queued_filename
+                        with open(queued_path, 'w', encoding='utf-8') as f:
+                            json.dump(action_data, f, indent=2)
+                        
+                        if file_path.exists():
+                            file_path.unlink()
+                        
+                        results['failed'] += 1
+                        continue
 
                 # Write updated action file to Done folder
                 done_path = self.done / f"EXECUTED_{file_path.name}"

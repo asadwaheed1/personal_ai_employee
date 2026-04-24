@@ -6,7 +6,22 @@
 ## System Status
 ✅ Operational
 
+
+## System Health
+
+**Last Checked**: 2026-04-24 16:26:40
+
+| Service | Status | Details |
+|---------|--------|---------|
+| Gmail MCP | 🔴 unhealthy | Gmail MCP auth failed — token refresh broken. OAuth token likely expired or invalid.
+
+**Result**: FAIL — `request to https://oauth2.googleapis.com/token failed`
+
+Fix: re-authenticate Gmail MCP. Run auth flow to get fresh tokens. |
+| LinkedIn API | 🟢 healthy | Authenticated as 1hRcj0HFMs |
+
 ## Recent Activity
+- [2026-04-24 17:00] Created content calendar with 5 posts for week of Apr 27
 - [2026-04-24 16:00] Created content calendar with 5 posts for week of Apr 27
 - [2026-04-24 15:00] Created content calendar with 5 posts for week of Apr 27
 - [2026-04-24 12:00] Created content calendar with 5 posts for week of Apr 27
@@ -57,6 +72,7 @@
 ## Summary
 
 Auto-processed 0 emails; kept 31 for review; moved 0 to Pending_Approval
+
 
 
 

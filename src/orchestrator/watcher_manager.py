@@ -394,6 +394,15 @@ def create_default_manager(vault_path: str) -> WatcherManager:
     else:
         logging.warning("LinkedIn API credentials not configured, skipping LinkedIn watcher")
 
+    # Twitter Watcher (if credentials configured)
+    if os.getenv('TWITTER_API_KEY') and os.getenv('TWITTER_API_SECRET'):
+        manager.register_watcher(
+            'twitter_watcher',
+            [python, '-m', 'src.watchers.run_twitter_watcher', vault_path]
+        )
+    else:
+        logging.warning("Twitter API credentials not configured, skipping Twitter watcher")
+
     return manager
 
 

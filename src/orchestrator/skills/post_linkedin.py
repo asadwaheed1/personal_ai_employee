@@ -373,15 +373,33 @@ Once approved, the post will be published to LinkedIn automatically and:
             else:
                 error_msg = result.get('message', 'Unknown error')
                 self.logger.error(f"LinkedIn API error: {error_msg}")
+                
+                # Check for transient errors to trigger retry
+                transient_indicators = ['timeout', 'connection', 'network', 'busy', '503', '504', '429']
+                if any(ind in error_msg.lower() for ind in transient_indicators):
+                    return {
+                        "success": False,
+                        "status": "retry",
+                        "error": error_msg,
+                        "message": f"Transient LinkedIn API error: {error_msg}. Post will be retried."
+                    }
+                
                 raise RuntimeError(f"LinkedIn API error: {error_msg}")
 
-        except ValueError as e:
-            self.logger.error(f"LinkedIn configuration error: {e}")
-            raise
-        except RuntimeError as e:
-            self.logger.error(f"LinkedIn authentication error: {e}")
+        except (ValueError, RuntimeError) as e:
+            self.logger.error(f"LinkedIn error: {e}")
             raise
         except Exception as e:
+            error_msg = str(e).lower()
+            transient_indicators = ['timeout', 'connection', 'network', 'dns', 'refused']
+            if any(ind in error_msg for ind in transient_indicators):
+                return {
+                    "success": False,
+                    "status": "retry",
+                    "error": str(e),
+                    "message": f"Transient connection error: {str(e)}. Post will be retried."
+                }
+            
             self.logger.error(f"Failed to post to LinkedIn: {e}", exc_info=True)
             raise RuntimeError(f"LinkedIn posting failed: {e}")
 
