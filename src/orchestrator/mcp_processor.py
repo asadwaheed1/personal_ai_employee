@@ -208,11 +208,25 @@ class MCPProcessor:
 
     def _execute_filesystem_action(self, tool: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Execute filesystem MCP actions via Claude Code's filesystem MCP server
+        Execute filesystem MCP actions via Claude Code's filesystem MCP server.
+        Post-processes result for data-returning tools (read/list/search/info)
+        where Claude outputs the data directly rather than a success confirmation.
         """
+        # Tools that return data rather than a confirmation string
+        DATA_TOOLS = {'read_file', 'list_directory', 'search_files', 'get_file_info', 'read_multiple_files', 'list_allowed_directories'}
+
         try:
             instruction = self._create_filesystem_instruction(tool, params)
             result = self._execute_claude_with_mcp(instruction, 'filesystem')
+
+            # For data-returning tools: if we got output with returncode 0, treat as success
+            # even when the output doesn't match generic success signal patterns
+            if not result.get('success') and tool in DATA_TOOLS:
+                output = result.get('output', result.get('error', ''))
+                if output and result.get('returncode', -1) == 0:
+                    self.logger.info(f"Filesystem {tool} returned data — treating as success")
+                    return {'success': True, 'output': output, 'returncode': 0}
+
             return result
         except Exception as e:
             self.logger.error(f"Filesystem action execution failed: {e}", exc_info=True)
@@ -298,16 +312,50 @@ Return the result of the operation.
 
     def _create_filesystem_instruction(self, tool: str, params: Dict[str, Any]) -> str:
         """
-        Create Claude instruction for filesystem MCP actions
+        Create Claude instruction for filesystem MCP actions.
+        Maps to @modelcontextprotocol/server-filesystem tool names exactly.
         """
-        return f"""
-Please execute a filesystem {tool} action using the MCP server.
+        if tool == 'read_file':
+            return f"""Use the filesystem MCP tool `read_file` to read the file at path: {params.get('path', 'Not specified')}
+Return the file contents. If the file does not exist, say so explicitly."""
 
-Parameters: {json.dumps(params)}
+        elif tool == 'write_file':
+            return f"""Use the filesystem MCP tool `write_file` to write a file.
+- path: {params.get('path', 'Not specified')}
+- content: {params.get('content', '')}
+Confirm the file was written successfully."""
 
-Use Claude's filesystem MCP server to perform this action.
-Return the result of the operation.
-"""
+        elif tool == 'list_directory':
+            return f"""Use the filesystem MCP tool `list_directory` to list contents of: {params.get('path', 'Not specified')}
+Return the directory listing."""
+
+        elif tool == 'create_directory':
+            return f"""Use the filesystem MCP tool `create_directory` to create directory at: {params.get('path', 'Not specified')}
+Confirm the directory was created."""
+
+        elif tool == 'move_file':
+            return f"""Use the filesystem MCP tool `move_file` to move/rename a file.
+- source: {params.get('source', 'Not specified')}
+- destination: {params.get('destination', 'Not specified')}
+Confirm the file was moved successfully."""
+
+        elif tool == 'search_files':
+            return f"""Use the filesystem MCP tool `search_files` to search for files.
+- path: {params.get('path', 'Not specified')}
+- pattern: {params.get('pattern', 'Not specified')}
+Return the list of matching files."""
+
+        elif tool == 'delete_file':
+            return f"""Use the filesystem MCP tool `delete_file` to delete the file at: {params.get('path', 'Not specified')}
+Confirm the file was deleted."""
+
+        elif tool == 'get_file_info':
+            return f"""Use the filesystem MCP tool `get_file_info` to get metadata for: {params.get('path', 'Not specified')}
+Return file size, modification time, and type."""
+
+        else:
+            return f"""Use the filesystem MCP tool `{tool}` with these parameters: {json.dumps(params)}
+Confirm the operation completed successfully."""
 
     def _execute_claude_with_mcp(self, instruction: str, mcp_server: str) -> Dict[str, Any]:
         """
@@ -408,6 +456,24 @@ Execute the specified MCP action and return the result.
                             'mcp action marked complete',
                             'has been marked',
                             'been archived',
+                            # Filesystem plain-text responses
+                            'file written',
+                            'file created',
+                            'file moved',
+                            'file deleted',
+                            'directory created',
+                            'directory listing',
+                            'directory contents',
+                            'file contents',
+                            'file size',
+                            'written to',
+                            'moved to',
+                            'deleted successfully',
+                            'created successfully',
+                            '[file]',
+                            '[directory]',
+                            'size:',
+                            'modified:',
                         ]
                         has_success_signal = any(signal in output_lower for signal in success_signals)
 

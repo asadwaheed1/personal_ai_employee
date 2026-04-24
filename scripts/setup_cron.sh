@@ -63,6 +63,10 @@ VAULT_PATH=$VAULT_PATH
 # Updates dashboard with current status
 0 8 * * * $PYTHON_PATH \"$PROJECT_DIR/scripts/dashboard_update.py\" >> \"$VAULT_PATH/Logs/dashboard_cron.log\" 2>&1
 
+# CEO Weekly Briefing every Monday at 7:00 AM
+# Generates Briefings/YYYY-MM-DD_Monday_Briefing.md from vault activity
+0 7 * * 1 cd \"$PROJECT_DIR\" && $PYTHON_PATH -m src.orchestrator.skills.generate_ceo_briefing '{\"vault_path\": \"$VAULT_PATH\"}' >> \"$VAULT_PATH/Logs/ceo_briefing_cron.log\" 2>&1
+
 # End of AI Employee cron jobs
 "
 
