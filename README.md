@@ -219,20 +219,20 @@ personal_ai_employee/
 
 | Document | Description |
 |----------|-------------|
-| **[START_HERE.md](START_HERE.md)** | Getting started guide |
-| **[GOLD_TIER_PLAN.md](GOLD_TIER_PLAN.md)** | Gold Tier implementation plan |
-| **[SILVER_TIER_TESTING_GUIDE.md](SILVER_TIER_TESTING_GUIDE.md)** | Silver Tier testing guide |
-| **[SILVER_TIER_DEMO.md](SILVER_TIER_DEMO.md)** | Complete demo results |
-| **[EMAIL_WORKFLOW_GUIDE.md](EMAIL_WORKFLOW_GUIDE.md)** | Email processing workflow |
-| **[EMAIL_ACTIONS_GUIDE.md](EMAIL_ACTIONS_GUIDE.md)** | Email actions quick reference |
-| **[LINKEDIN_SETUP_QUICK_REF.md](LINKEDIN_SETUP_QUICK_REF.md)** | LinkedIn OAuth/API setup quick reference |
-| **[LINKEDIN_WATCHER_GUIDE.md](LINKEDIN_WATCHER_GUIDE.md)** | LinkedIn watcher guide |
-| **[BRONZE_TIER_DOCS.md](BRONZE_TIER_DOCS.md)** | Bronze Tier technical docs |
-| **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** | System quick reference |
-| **[AGENT_SKILLS_QUICK_REFERENCE.md](AGENT_SKILLS_QUICK_REFERENCE.md)** | Agent Skills guide |
-| **[AGENT_SKILLS_DOCUMENTATION.md](AGENT_SKILLS_DOCUMENTATION.md)** | Skills technical docs |
+| **[START_HERE.md](docs/START_HERE.md)** | Getting started guide |
+| **[GOLD_TIER_PLAN.md](docs/GOLD_TIER_PLAN.md)** | Gold Tier implementation plan |
+| **[SILVER_TIER_TESTING_GUIDE.md](docs/SILVER_TIER_TESTING_GUIDE.md)** | Silver Tier testing guide |
+| **[SILVER_TIER_DEMO.md](docs/SILVER_TIER_DEMO.md)** | Complete demo results |
+| **[EMAIL_WORKFLOW_GUIDE.md](docs/EMAIL_WORKFLOW_GUIDE.md)** | Email processing workflow |
+| **[EMAIL_ACTIONS_GUIDE.md](docs/EMAIL_ACTIONS_GUIDE.md)** | Email actions quick reference |
+| **[LINKEDIN_SETUP_QUICK_REF.md](docs/LINKEDIN_SETUP_QUICK_REF.md)** | LinkedIn OAuth/API setup quick reference |
+| **[LINKEDIN_WATCHER_GUIDE.md](docs/LINKEDIN_WATCHER_GUIDE.md)** | LinkedIn watcher guide |
+| **[BRONZE_TIER_DOCS.md](docs/BRONZE_TIER_DOCS.md)** | Bronze Tier technical docs |
+| **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** | System quick reference |
+| **[AGENT_SKILLS_QUICK_REFERENCE.md](docs/AGENT_SKILLS_QUICK_REFERENCE.md)** | Agent Skills guide |
+| **[AGENT_SKILLS_DOCUMENTATION.md](docs/AGENT_SKILLS_DOCUMENTATION.md)** | Skills technical docs |
 | **[CLAUDE.md](CLAUDE.md)** | Claude Code configuration |
-| **[TESTING.md](TESTING.md)** | Test scenarios |
+| **[TESTING.md](docs/TESTING.md)** | Test scenarios |
 
 ---
 
@@ -374,7 +374,7 @@ rm ai_employee_vault/.state/processing.lock
 ./stop.sh && ./start.sh
 ```
 
-See [BRONZE_TIER_DOCS.md](BRONZE_TIER_DOCS.md) for complete troubleshooting guide.
+See [BRONZE_TIER_DOCS.md](docs/BRONZE_TIER_DOCS.md) for complete troubleshooting guide.
 
 ---
 
@@ -451,7 +451,7 @@ Contributions welcome! Please:
 
 ## 📞 Support
 
-- 📖 **Documentation**: See [BRONZE_TIER_DOCS.md](BRONZE_TIER_DOCS.md)
+- 📖 **Documentation**: See [BRONZE_TIER_DOCS.md](docs/BRONZE_TIER_DOCS.md)
 - 🐛 **Issues**: Check logs first, then GitHub issues
 - 💬 **Discussions**: GitHub Discussions
 
