@@ -125,6 +125,17 @@ class ProcessApprovedActionsSkill(BaseSkill):
             return self._execute_approved_email_via_mcp(approval_data, content)
 
         action_type = approval_data.get('action', '').lower()
+        
+        # Social Media Posting Actions
+        if 'twitter_post' in action_type:
+            return self._execute_skill('post_twitter.py', approval_data)
+        elif 'facebook_post' in action_type:
+            return self._execute_skill('post_facebook.py', approval_data)
+        elif 'instagram_post' in action_type:
+            return self._execute_skill('post_instagram.py', approval_data)
+        elif 'linkedin_post' in action_type or 'linkedin_scheduled_post' in action_type:
+            return self._execute_skill('post_linkedin.py', approval_data)
+
         if 'payment' in action_type:
             return self._execute_payment_action(approval_data, content)
         elif 'email' in action_type or action_type == 'send_email':
@@ -135,6 +146,46 @@ class ProcessApprovedActionsSkill(BaseSkill):
             return self._execute_system_action(approval_data, content)
         else:
             return self._execute_generic_action(approval_data, content)
+
+    def _execute_skill(self, skill_name: str, approval_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute a specific skill with approved parameters"""
+        skill_path = Path(__file__).parent / skill_name
+        if not skill_path.exists():
+            return {'status': 'failed', 'error': f'Skill not found: {skill_name}'}
+
+        # Try to load the companion JSON data file
+        # Reconstruct path from id
+        approved_dir = self.vault_path / 'Approved'
+        data_path = approved_dir / f"{approval_data['id']}.json"
+        
+        if data_path.exists():
+            try:
+                params = json.loads(data_path.read_text())
+                params['action'] = 'execute_approved'
+            except:
+                params = {'action': 'execute_approved'}
+        else:
+            params = {'action': 'execute_approved'}
+
+        try:
+            result = subprocess.run(
+                [sys.executable, str(skill_path), json.dumps(params)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                cwd=str(self.vault_path.parent)
+            )
+
+            if result.returncode == 0:
+                try:
+                    payload = json.loads(result.stdout)
+                    return payload.get('result', payload)
+                except:
+                    return {'status': 'completed', 'message': 'Skill executed successfully'}
+            else:
+                return {'status': 'failed', 'error': result.stderr[:300]}
+        except Exception as e:
+            return {'status': 'failed', 'error': str(e)}
 
     def _execute_approved_email_via_mcp(self, email_data: Dict[str, Any], content: str) -> Dict[str, Any]:
         """

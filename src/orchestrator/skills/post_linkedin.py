@@ -361,6 +361,9 @@ Once approved, the post will be published to LinkedIn automatically and:
 
                 # Log activity
                 self._log_post(content, result.get('post_id'))
+                
+                # Gold Tier: Structured Audit Logging
+                self._log_audit('linkedin_post', result.get('post_id'), 'success')
 
                 return {
                     "success": True,

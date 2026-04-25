@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Setup script for AI Employee Silver Tier (with LinkedIn API)
+# Setup script for AI Employee Gold Tier
 
 set -e
 
-echo "=== AI Employee Silver Tier Setup ==="
+echo "=== AI Employee Gold Tier Setup ==="
 echo ""
 
 # Get the script directory
@@ -63,7 +63,7 @@ echo ""
 
 # Create vault structure if it doesn't exist
 echo "Setting up vault structure..."
-mkdir -p "$VAULT_PATH"/{Inbox,Needs_Action,Done,Pending_Approval,Approved,Rejected,Plans,Logs,.state,.obsidian,Content_Calendar}
+mkdir -p "$VAULT_PATH"/{Inbox,Needs_Action,Done,Pending_Approval,Approved,Rejected,Plans,Logs,.state,.obsidian,Content_Calendar,Briefings}
 mkdir -p "$CREDENTIALS_PATH"
 echo "✓ Vault directories created"
 echo "✓ Credentials directory created"
@@ -289,7 +289,7 @@ echo ""
 validation_failed=0
 
 # Check required directories
-required_dirs=("Inbox" "Needs_Action" "Done" "Plans" "Pending_Approval" "Approved" "Rejected" "Logs" ".state" "Content_Calendar")
+required_dirs=("Inbox" "Needs_Action" "Done" "Plans" "Pending_Approval" "Approved" "Rejected" "Logs" ".state" "Content_Calendar" "Briefings")
 for dir in "${required_dirs[@]}"; do
     if [ ! -d "$VAULT_PATH/$dir" ]; then
         echo "✗ Missing directory: $dir"
@@ -325,21 +325,29 @@ echo "✓ Setup validation passed"
 echo ""
 echo "Next steps:"
 echo ""
-echo "1. Configure credentials (if not done):"
-echo "   - Edit .env file with LinkedIn credentials"
-echo "   - Run: python scripts/setup_linkedin_api.py"
+echo "1. Configure credentials (edit .env with your keys):"
+echo "   - LINKEDIN_CLIENT_ID / LINKEDIN_CLIENT_SECRET"
+echo "   - TWITTER_API_KEY / TWITTER_API_SECRET / TWITTER_ACCESS_TOKEN / TWITTER_ACCESS_SECRET / TWITTER_BEARER_TOKEN"
+echo "   - META_APP_ID / META_APP_SECRET / META_PAGE_ID / INSTAGRAM_BUSINESS_ACCOUNT_ID"
 echo ""
-echo "2. Start the watcher manager:"
+echo "2. Authenticate LinkedIn:"
+echo "   venv/bin/python scripts/setup_linkedin_api.py"
+echo ""
+echo "3. Authenticate Meta (Facebook + Instagram):"
+echo "   venv/bin/python scripts/setup_meta_api.py"
+echo ""
+echo "4. Start all watchers:"
 echo "   python -m src.orchestrator.watcher_manager $VAULT_PATH start"
 echo ""
-echo "3. Or start individual watchers:"
+echo "5. Or start individual watchers:"
 echo "   python -m src.watchers.run_filesystem_watcher $VAULT_PATH"
 echo "   python -m src.watchers.run_gmail_watcher $VAULT_PATH"
-echo "   python -m src.watchers.run_linkedin_watcher $VAULT_PATH"
+echo "   python -m src.watchers.run_meta_watcher $VAULT_PATH"
+echo "   python -m src.watchers.run_twitter_watcher $VAULT_PATH"
 echo ""
-echo "4. Test LinkedIn posting:"
-echo "   python -m src.orchestrator.skills.post_linkedin '{\"action\": \"create_post\", \"content\": \"Hello LinkedIn!\"}'"
+echo "6. Set up cron jobs (Linux):"
+echo "   bash scripts/setup_cron.sh"
 echo ""
-echo "5. Open Dashboard:"
+echo "7. Open Dashboard:"
 echo "   $VAULT_PATH/Dashboard.md"
 echo ""

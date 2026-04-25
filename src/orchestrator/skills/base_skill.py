@@ -86,6 +86,33 @@ class BaseSkill:
             self.logger.error(f"Failed to move file from {source} to {destination}: {e}")
             raise
 
+    def _log_audit(self, action_type: str, target: str, result: str = 'success', platform: str = 'system', details: Dict = None, error: str = None):
+        """Log structured audit entry using AuditLoggerSkill pattern"""
+        try:
+            from .audit_logger import AuditLoggerSkill
+        except ImportError:
+            try:
+                from audit_logger import AuditLoggerSkill
+            except ImportError:
+                self.logger.warning("AuditLoggerSkill not found, logging locally only")
+                return
+
+        try:
+            logger_skill = AuditLoggerSkill(str(self.vault_path))
+            params = {
+                "action_type": action_type,
+                "actor": self.__class__.__name__,
+                "platform": platform,
+                "target": target,
+                "result": result,
+                "details": details or {},
+                "error": error,
+                "approval_status": "manual" # Base assumption for skills triggered via process_approved
+            }
+            logger_skill.execute(params)
+        except Exception as e:
+            self.logger.error(f"Failed to log audit entry: {e}")
+
 
 def run_skill(skill_class, params_json: str):
     """Run a skill from command line"""

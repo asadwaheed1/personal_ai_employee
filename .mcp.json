@@ -15,6 +15,16 @@
         "@modelcontextprotocol/server-filesystem",
         "/home/asad/piaic/projects/personal_ai_employee/ai_employee_vault"
       ]
+    },
+    "odoo": {
+      "command": "npx",
+      "args": ["-y", "odoo-mcp"],
+      "env": {
+        "ODOO_URL": "http://localhost:8069",
+        "ODOO_DB": "odoo",
+        "ODOO_USERNAME": "admin",
+        "ODOO_PASSWORD": "admin"
+      }
     }
   }
 }

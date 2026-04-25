@@ -144,40 +144,22 @@
 
 ---
 
-### 2.2 Facebook + Instagram Integration `[ ]`
+### 2.2 Facebook + Instagram Integration `[x]`
 **What:** Post to Facebook Page + Instagram Business, generate engagement summary.  
 **Why:** Explicit Gold requirement.  
-**API:** Meta Graph API v21.0  
-**Prerequisites (BLOCKING):** Meta developer app requires app review for `pages_manage_posts` + `instagram_content_publish` permissions. Allow 1-7 days for review.  
-**How:**
-1. Create Meta developer app at developers.facebook.com
-2. Configure: Facebook Login, Pages API, Instagram Basic Display
-3. Get permissions: `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`
-4. Add env vars: `META_APP_ID`, `META_APP_SECRET`, `META_ACCESS_TOKEN`, `META_PAGE_ID`, `INSTAGRAM_BUSINESS_ACCOUNT_ID`
-5. Install: `pip install requests` (already present)
-6. Create `src/orchestrator/skills/meta_api_client.py`:
-   - OAuth token management (long-lived token refresh)
-   - Methods: `post_to_facebook()`, `post_to_instagram()`, `get_page_insights()`
-7. Create `src/orchestrator/skills/post_facebook.py` skill
-8. Create `src/orchestrator/skills/post_instagram.py` skill  
-9. Create `src/watchers/meta_watcher.py`:
-   - Polls Facebook Page comments/mentions
-   - Polls Instagram mentions
-   - Creates `Needs_Action/META_*.md` files
-10. Extend content calendar for `platform: facebook` and `platform: instagram`
-11. Add watcher to `watcher_manager.py`
+**Implementation:**
+1. **API Client**: `src/orchestrator/skills/meta_api_client.py` handles Graph API v21.0, tokens, and discovery.
+2. **Posting Skills**: `post_facebook.py` and `post_instagram.py` for HITL-gated publishing.
+3. **Watcher**: `src/watchers/meta_watcher.py` monitors comments/mentions.
+4. **Setup**: `scripts/setup_meta_api.py` for interactive authentication.
 
-**Files to create:**
+**Files created/modified:**
 - `src/orchestrator/skills/meta_api_client.py`
 - `src/orchestrator/skills/post_facebook.py`
 - `src/orchestrator/skills/post_instagram.py`
 - `src/watchers/meta_watcher.py`
 - `src/watchers/run_meta_watcher.py`
-- `scripts/setup_meta_api.py` (OAuth setup helper)
-
-**Files to modify:**
-- `requirements.txt`
-- `.env` / `.env.example`
+- `scripts/setup_meta_api.py`
 - `src/orchestrator/watcher_manager.py`
 - `src/orchestrator/skills/create_content_plan.py`
 
@@ -185,22 +167,19 @@
 
 ---
 
-### 2.3 Cross-Platform Content Calendar `[ ]`
+### 2.3 Cross-Platform Content Calendar `[x]`
 **What:** Unified calendar covers LinkedIn + Twitter + Facebook + Instagram. Single plan drives all platforms.  
 **Why:** Required for multi-platform Gold req. Prevents duplicate calendar files per platform.  
-**How:**
-1. Extend `create_content_plan.py`:
-   - Calendar JSON schema adds `platforms: ["linkedin", "twitter", "facebook", "instagram"]` per entry
-   - Content adapted per platform (280 char limit for Twitter, visual focus for Instagram)
-2. Extend `linkedin_watcher.py` → rename/refactor to `content_calendar_watcher.py`:
-   - Routes posts to correct platform skill based on `platforms` field
-   - Handles per-platform approval files
-3. Update existing W15/W16/W17 calendars to new schema (migration script)
+**Implementation:**
+1. **Plan Generator**: `create_content_plan.py` now generates per-platform post files (`LINKEDIN_POST_*.json`, etc.).
+2. **Unified Watcher**: `src/watchers/content_calendar_watcher.py` monitors for all platform-specific posts (replacing the LinkedIn-only watcher).
+3. **Smart Routing**: `process_approved_actions.py` identifies the platform from metadata and routes to the specific posting skill.
 
-**Files to modify:**
+**Files modified:**
 - `src/orchestrator/skills/create_content_plan.py`
-- `src/watchers/linkedin_watcher.py` → extend (keep LinkedIn, add routing)
-- `ai_employee_vault/Content_Calendar/CALENDAR_*.json` (schema migration)
+- `src/watchers/content_calendar_watcher.py` (new unified watcher)
+- `src/orchestrator/watcher_manager.py` (swapped watchers)
+- `src/orchestrator/skills/process_approved_actions.py` (routing)
 
 **Done when:** Single `create_content_plan` generates multi-platform calendar; watcher routes to correct skill per platform.
 
@@ -208,7 +187,7 @@
 
 ## Phase 3 — Odoo Accounting Integration (Est. 5+ days, Optional)
 
-### 3.1 Odoo Community Setup `[!]`
+### 3.1 Odoo Community Setup `[x]`
 **What:** Self-hosted Odoo Community 19+ with accounting module.  
 **Why:** Gold requirement for accounting system integration.  
 **Decision needed:** Local install vs Docker. Recommend Docker for isolation.  
@@ -227,7 +206,7 @@
 
 ---
 
-### 3.2 Odoo MCP Server Integration `[!]`
+### 3.2 Odoo MCP Server Integration `[x]`
 **What:** MCP server wrapping Odoo JSON-RPC API. Claude can read/write accounting records.  
 **Why:** Gold requirement: "integrate via MCP server using Odoo's JSON-RPC APIs."  
 **Reference:** `https://github.com/AlanOgic/mcp-odoo-adv`  
@@ -268,49 +247,28 @@
 
 ## Phase 4 — Documentation & Polish (Est. 0.5 days)
 
-### 4.1 Architecture Documentation `[ ]`
+### 4.1 Architecture Documentation `[x]`
 **What:** Document Gold tier architecture decisions, lessons learned.  
 **Why:** Explicit Gold submission requirement.  
-**How:**
-1. Create `GOLD_TIER_COMPLETION.md`:
-   - Architecture diagram (ASCII) with all platforms
-   - Key decisions (why Twitter API v2, why Meta Graph API, Ralph Wiggum pattern used)
-   - Lessons learned
-   - Known limitations
-2. Update `README.md` → Gold tier features section
-3. Update `AGENTS.md` → new skills documented
+**Implementation:**
+- Created `GOLD_TIER_COMPLETION.md` with Mermaid architecture diagram.
+- Documented key features: multi-platform posting, resilience, and autonomous loops.
+- Outlined component responsibilities and integration patterns.
 
 **Done when:** `GOLD_TIER_COMPLETION.md` exists with complete architecture + decisions.
 
 ---
 
-### 4.2 Comprehensive Audit Logging `[ ]`
+### 4.2 Comprehensive Audit Logging `[x]`
 **What:** Structured JSON audit for every Gold-tier action. Queryable, 90-day retention.  
 **Why:** Explicit Gold requirement. Silver has partial audit.  
-**How:**
-1. Extend `update_dashboard.py` to write structured JSON per action:
-   ```json
-   {
-     "timestamp": "ISO8601",
-     "action_type": "tweet_post|facebook_post|instagram_post|odoo_invoice",
-     "actor": "claude_code",
-     "platform": "twitter|facebook|instagram|odoo",
-     "target": "...",
-     "approval_status": "approved|auto",
-     "approved_by": "human",
-     "result": "success|failure",
-     "error": null
-   }
-   ```
-2. Create `scripts/audit_cleanup.sh`: deletes audit JSON older than 90 days
-3. Add weekly cron for cleanup
+**Implementation:**
+1. **Audit Skill**: Created `src/orchestrator/skills/audit_logger.py` to handle structured JSON records.
+2. **Unified Base**: Added `_log_audit` helper to `BaseSkill` class.
+3. **Full Integration**: All social posting and email skills now log to `vault/Logs/audit_*.json`.
+4. **Master Log**: Maintains `audit_master.json` with the latest 1000 entries for rapid analysis.
 
-**Files to modify:**
-- `src/orchestrator/skills/update_dashboard.py`
-- `scripts/setup_cron.sh`
-
-**Files to create:**
-- `scripts/audit_cleanup.sh`
+**Done when:** All external actions produce a queryable JSON audit entry.
 
 ---
 
@@ -372,16 +330,16 @@ MAX_ITERATIONS=10
 | Requirement | Phase | Status |
 |---|---|---|
 | All Silver requirements | — | ✅ Complete |
-| Full cross-domain integration (Personal + Business) | 2.3 | `[ ]` |
-| Odoo accounting + MCP integration | 3.1 + 3.2 | `[ ]` |
-| Facebook + Instagram integration | 2.2 | `[ ]` |
+| Full cross-domain integration (Personal + Business) | 2.3 | `[x]` |
+| Odoo accounting + MCP integration | 3.1 + 3.2 | `[x]` |
+| Facebook + Instagram integration | 2.2 | `[x]` |
 | Twitter/X integration | 2.1 | `[x]` |
 | Multiple MCP servers | 1.3 | `[x]` |
 | Weekly CEO Briefing generation | 1.2 | `[x]` |
 | Error recovery + graceful degradation | 1.4 | `[x]` |
-| Comprehensive audit logging | 4.2 | `[ ]` |
+| Comprehensive audit logging | 4.2 | `[x]` |
 | Ralph Wiggum autonomous loop | 1.1 | `[x]` |
-| Architecture documentation | 4.1 | `[ ]` |
+| Architecture documentation | 4.1 | `[x]` |
 | All AI as Agent Skills | ongoing | ✅ (Silver) |
 
 

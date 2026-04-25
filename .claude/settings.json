@@ -2,8 +2,13 @@
   "hooks": {
     "Stop": [
       {
-        "type": "command",
-        "command": "bash /home/asad/piaic/projects/personal_ai_employee/.claude/hooks/stop.sh"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/asad/piaic/projects/personal_ai_employee/.claude/hooks/stop.sh"
+          }
+        ]
       }
     ]
   }

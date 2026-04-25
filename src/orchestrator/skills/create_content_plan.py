@@ -28,7 +28,7 @@ class CreateContentPlanSkill(BaseSkill):
         """Create content plan"""
         week_start = params.get('week_start')
         num_posts = params.get('num_posts', 5)
-        platforms = params.get('platforms', ['linkedin'])
+        platforms = params.get('platforms', ['linkedin', 'twitter', 'facebook', 'instagram'])
 
         # Determine week start
         if week_start:
@@ -193,20 +193,31 @@ class CreateContentPlanSkill(BaseSkill):
             # Generate post content
             content = self._generate_post_content(theme, context)
 
-            post = {
-                'id': f"POST_{post_time.strftime('%Y%m%d_%H%M')}",
-                'scheduled_for': post_time.isoformat(),
-                'platform': 'linkedin',
-                'type': theme['type'],
-                'title': theme['title'],
-                'content': content,
-                'hashtags': self._generate_hashtags(context),
-                'status': 'scheduled',
-                'created_at': datetime.now().isoformat(),
-                'optimal_engagement_time': f"{hour}:00 - {hour + 2}:00"
-            }
+            for platform in platforms:
+                post = {
+                    'id': f"POST_{platform.upper()}_{post_time.strftime('%Y%m%d_%H%M')}",
+                    'scheduled_for': post_time.isoformat(),
+                    'platform': platform,
+                    'type': theme['type'],
+                    'title': theme['title'],
+                    'content': content,
+                    'hashtags': self._generate_hashtags(context),
+                    'status': 'scheduled',
+                    'created_at': datetime.now().isoformat(),
+                    'optimal_engagement_time': f"{hour}:00 - {hour + 2}:00"
+                }
+                
+                # Platform specific adjustments
+                if platform == 'twitter':
+                    # Truncate content for Twitter
+                    if len(post['content']) > 280:
+                        post['content'] = post['content'][:277] + "..."
+                
+                if platform == 'instagram':
+                    # Add placeholder image URL for Instagram
+                    post['image_url'] = "https://images.unsplash.com/photo-1518770660439-4636190af475"
 
-            posts.append(post)
+                posts.append(post)
 
         return {
             'week_start': start_date.strftime('%Y-%m-%d'),
@@ -305,21 +316,42 @@ What's your philosophy on consistency?
         return base_tags + specific_tags
 
     def _save_calendar(self, calendar: Dict, start_date: datetime) -> Path:
-        """Save calendar to file"""
+        """Save calendar and individual post files to Content_Calendar"""
         calendar_dir = self.vault_path / 'Content_Calendar'
         calendar_dir.mkdir(exist_ok=True)
 
-        # Save weekly calendar as JSON
+        # 1. Save individual post files for watchers
+        for post in calendar['posts']:
+            platform = post['platform']
+            dt = datetime.fromisoformat(post['scheduled_for'])
+            filename = f"{platform.upper()}_POST_{dt.strftime('%Y%m%d_%H%M%S')}.json"
+            
+            # Map simplified post data for specific skills
+            post_file_data = {
+                'type': f"{platform}_post",
+                'content': post['content'],
+                'scheduled_for': post['scheduled_for'],
+                'created_at': post['created_at'],
+                'status': 'scheduled',
+                'hashtags': post['hashtags']
+            }
+            
+            if platform == 'instagram':
+                post_file_data['image_url'] = post.get('image_url')
+            
+            (calendar_dir / filename).write_text(json.dumps(post_file_data, indent=2), encoding='utf-8')
+
+        # 2. Save weekly calendar as JSON
         week_str = start_date.strftime('%Y-W%U')
         calendar_file = calendar_dir / f"CALENDAR_{week_str}.json"
         calendar_file.write_text(json.dumps(calendar, indent=2), encoding='utf-8')
 
-        # Also save as markdown for easy viewing
+        # 3. Also save as markdown for easy viewing
         md_file = calendar_dir / f"CALENDAR_{week_str}.md"
         md_content = self._calendar_to_markdown(calendar)
         md_file.write_text(md_content, encoding='utf-8')
 
-        self.logger.info(f"Saved content calendar to {calendar_file}")
+        self.logger.info(f"Saved content calendar and {len(calendar['posts'])} post files to {calendar_dir}")
 
         return calendar_file
 

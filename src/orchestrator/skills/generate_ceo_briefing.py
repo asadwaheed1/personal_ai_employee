@@ -5,10 +5,11 @@ Reads vault state for the past 7 days and writes Briefings/YYYY-MM-DD_Monday_Bri
 """
 
 import json
+import os
 import sys
 from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from datetime import datetime, timedelta, date
+from typing import Dict, Any, List, Optional
 
 try:
     from .base_skill import BaseSkill, run_skill
@@ -32,11 +33,12 @@ class GenerateCEOBriefingSkill(BaseSkill):
         audit_stats = self._scan_audit_logs(cutoff)
         calendar_stats = self._scan_content_calendar()
         pending_stats = self._count_pending()
+        odoo_stats = self._fetch_odoo_financials(cutoff, briefing_date)
         anomalies = self._detect_anomalies(done_stats, audit_stats, pending_stats)
 
         briefing = self._render_briefing(
             briefing_date, cutoff, done_stats, audit_stats,
-            calendar_stats, pending_stats, anomalies
+            calendar_stats, pending_stats, anomalies, odoo_stats
         )
 
         briefings_dir = self.vault_path / "Briefings"
@@ -52,6 +54,7 @@ class GenerateCEOBriefingSkill(BaseSkill):
             "period_end": briefing_date.strftime("%Y-%m-%d"),
             "done_tasks": done_stats["total"],
             "pending_items": pending_stats["total"],
+            "odoo_revenue": odoo_stats.get("total_revenue"),
         }
 
     # -------------------------------------------------------------------------
@@ -203,6 +206,62 @@ class GenerateCEOBriefingSkill(BaseSkill):
             anomalies.append("No tasks completed this week — system may be stalled or idle")
         return anomalies
 
+    def _fetch_odoo_financials(self, cutoff: datetime, end: datetime) -> Dict[str, Any]:
+        """Pull revenue + expense summary from Odoo. Returns empty dict if Odoo unavailable."""
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(Path(__file__).parents[3] / ".env")
+
+            odoo_url = os.getenv("ODOO_URL", "")
+            odoo_db = os.getenv("ODOO_DB", "odoo")
+            odoo_user = os.getenv("ODOO_USERNAME", "admin")
+            odoo_pass = os.getenv("ODOO_PASSWORD", "admin")
+
+            if not odoo_url:
+                return {"available": False, "reason": "ODOO_URL not set"}
+
+            import xmlrpc.client
+            common = xmlrpc.client.ServerProxy(f"{odoo_url}/xmlrpc/2/common")
+            uid = common.authenticate(odoo_db, odoo_user, odoo_pass, {})
+            if not uid:
+                return {"available": False, "reason": "Authentication failed"}
+
+            models = xmlrpc.client.ServerProxy(f"{odoo_url}/xmlrpc/2/object")
+
+            period_start = cutoff.strftime("%Y-%m-%d")
+            period_end = end.strftime("%Y-%m-%d")
+
+            invoices = models.execute_kw(
+                odoo_db, uid, odoo_pass, "account.move", "search_read",
+                [[("move_type", "=", "out_invoice"), ("state", "=", "posted"),
+                  ("invoice_date", ">=", period_start), ("invoice_date", "<=", period_end)]],
+                {"fields": ["amount_total", "payment_state"], "limit": 500}
+            )
+            revenue = sum(i.get("amount_total", 0) for i in invoices)
+            revenue_paid = sum(i.get("amount_total", 0) for i in invoices if i.get("payment_state") == "paid")
+
+            bills = models.execute_kw(
+                odoo_db, uid, odoo_pass, "account.move", "search_read",
+                [[("move_type", "=", "in_invoice"), ("state", "=", "posted"),
+                  ("invoice_date", ">=", period_start), ("invoice_date", "<=", period_end)]],
+                {"fields": ["amount_total"], "limit": 500}
+            )
+            expenses = sum(b.get("amount_total", 0) for b in bills)
+
+            return {
+                "available": True,
+                "period": f"{period_start} → {period_end}",
+                "invoice_count": len(invoices),
+                "total_revenue": round(revenue, 2),
+                "revenue_collected": round(revenue_paid, 2),
+                "outstanding_receivables": round(revenue - revenue_paid, 2),
+                "bill_count": len(bills),
+                "total_expenses": round(expenses, 2),
+                "net": round(revenue - expenses, 2),
+            }
+        except Exception as e:
+            return {"available": False, "reason": str(e)}
+
     # -------------------------------------------------------------------------
     # Rendering
     # -------------------------------------------------------------------------
@@ -216,6 +275,7 @@ class GenerateCEOBriefingSkill(BaseSkill):
         calendar: Dict[str, Any],
         pending: Dict[str, Any],
         anomalies: List[str],
+        odoo: Optional[Dict[str, Any]] = None,
     ) -> str:
         period = f"{cutoff.strftime('%Y-%m-%d')} → {briefing_date.strftime('%Y-%m-%d')}"
         generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -297,6 +357,12 @@ class GenerateCEOBriefingSkill(BaseSkill):
 
 ---
 
+## Financial Summary (Odoo)
+
+{self._render_odoo_section(odoo)}
+
+---
+
 ## Anomalies & Alerts
 
 {anomaly_section}
@@ -315,6 +381,22 @@ class GenerateCEOBriefingSkill(BaseSkill):
 
 *Briefing auto-generated by `generate_ceo_briefing.py`. Edit Company_Handbook.md to adjust thresholds.*
 """
+
+
+    def _render_odoo_section(self, odoo: Optional[Dict[str, Any]]) -> str:
+        if not odoo or not odoo.get("available"):
+            reason = odoo.get("reason", "Odoo not configured") if odoo else "Odoo not configured"
+            return f"_Odoo unavailable: {reason}_"
+        return f"""| Metric | Value |
+|---|---|
+| Period | {odoo.get('period', 'N/A')} |
+| Invoices issued | {odoo.get('invoice_count', 0)} |
+| Total revenue | ${odoo.get('total_revenue', 0):,.2f} |
+| Revenue collected | ${odoo.get('revenue_collected', 0):,.2f} |
+| Outstanding receivables | ${odoo.get('outstanding_receivables', 0):,.2f} |
+| Bills / expenses | {odoo.get('bill_count', 0)} |
+| Total expenses | ${odoo.get('total_expenses', 0):,.2f} |
+| **Net (Revenue − Expenses)** | **${odoo.get('net', 0):,.2f}** |"""
 
 
 if __name__ == "__main__":

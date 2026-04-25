@@ -1,4 +1,4 @@
-# AI Employee - Silver Tier Requirements
+# AI Employee - Gold Tier Requirements
 
 # Core dependencies
 watchdog>=3.0.0

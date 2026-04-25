@@ -376,23 +376,11 @@ def create_default_manager(vault_path: str) -> WatcherManager:
     else:
         logging.warning(f"Gmail credentials not found at {gmail_creds}, skipping Gmail watcher")
 
-    # LinkedIn Watcher (if API credentials configured)
-    import os
-    if os.getenv('LINKEDIN_CLIENT_ID') and os.getenv('LINKEDIN_CLIENT_SECRET'):
-        # Check if token exists (authentication has been done)
-        token_path = Path(vault_path).parent / 'credentials' / 'linkedin_api_token.json'
-        if token_path.exists():
-            manager.register_watcher(
-                'linkedin_watcher',
-                [python, '-m', 'src.watchers.run_linkedin_watcher', vault_path]
-            )
-        else:
-            logging.warning(
-                f"LinkedIn API token not found at {token_path}. "
-                "Run 'python scripts/setup_linkedin_api.py' to authenticate."
-            )
-    else:
-        logging.warning("LinkedIn API credentials not configured, skipping LinkedIn watcher")
+    # Content Calendar Watcher (replaces LinkedIn Watcher for multi-platform)
+    manager.register_watcher(
+        'content_calendar_watcher',
+        [python, '-m', 'src.watchers.content_calendar_watcher', vault_path]
+    )
 
     # Twitter Watcher (if credentials configured)
     if os.getenv('TWITTER_API_KEY') and os.getenv('TWITTER_API_SECRET'):
@@ -402,6 +390,15 @@ def create_default_manager(vault_path: str) -> WatcherManager:
         )
     else:
         logging.warning("Twitter API credentials not configured, skipping Twitter watcher")
+
+    # Meta Watcher (if credentials configured)
+    if os.getenv('META_APP_ID') and os.getenv('META_APP_SECRET'):
+        manager.register_watcher(
+            'meta_watcher',
+            [python, '-m', 'src.watchers.run_meta_watcher', vault_path]
+        )
+    else:
+        logging.warning("Meta API credentials not configured, skipping Meta watcher")
 
     return manager
 

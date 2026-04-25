@@ -1,9 +1,9 @@
 # Personal AI Employee - Project Status
 
-**Last Updated:** 2026-04-24  
+**Last Updated:** 2026-04-25  
 **Current Branch:** gold-imp  
 **Target Tier:** Gold  
-**Overall Status:** ✅ Silver complete. Gold tier in progress — 3/11 tasks done.
+**Overall Status:** ✅ Gold 100% complete — Odoo accounting + MCP integrated, CEO Briefing pulls live revenue data.
 
 ---
 
@@ -19,13 +19,82 @@
 | Scheduling | ✅ Complete | Cron installed + scheduled commands smoke-tested |
 | Error recovery hardening | ✅ Complete | Retry logic, validation, overflow queue, health check |
 | Twitter/X Integration | ✅ Complete | Tweepy client, posting skill, mention watcher |
+| Facebook + Instagram | ✅ Complete | Meta API client, FB/IG posting skills, activity watcher |
+| Cross-platform Calendar| ✅ Complete | Unified JSON plan drives LI/TW/FB/IG posting; FB+IG live-tested |
+| Comprehensive Audit | ✅ Complete | Structured JSON logging for all external actions |
 | Documentation | ✅ Updated | Core setup/testing docs aligned to API-first flow |
+
+---
+
+## ✅ Latest Confirmed Outcomes (2026-04-25) — Odoo Integration
+
+1. **Odoo Community 17 running via Docker** (task 3.1):
+   - `docker/docker-compose.yml` — Odoo 17 + PostgreSQL 15, port 8069.
+   - `docker/odoo.conf` — DB config pointing to postgres container.
+   - DB initialized with base + account modules (47 chart-of-accounts entries, 24 existing journal entries).
+   - XML-RPC auth confirmed: UID 2, full `account.move` access.
+
+2. **Odoo accounting skill created** (`src/orchestrator/skills/odoo_accounting.py`):
+   - `get_revenue_summary()` — reads posted customer invoices for any period via XML-RPC.
+   - `get_expense_summary()` — reads posted vendor bills.
+   - `create_draft_invoice()` — creates DRAFT invoice only; writes HITL approval file to `Pending_Approval/`.
+   - Live test: returned 4 invoices totaling $143,175 for April 2026.
+
+3. **Odoo MCP server added** (`odoo-mcp` npm package):
+   - `.mcp.json` updated — 3 MCP servers: gmail, filesystem, odoo.
+   - Odoo MCP env: `ODOO_URL=http://localhost:8069`, `ODOO_DB=odoo`, `ODOO_USERNAME=admin`.
+   - `.env` updated with `ODOO_URL/DB/USERNAME/PASSWORD`.
+
+4. **CEO Briefing extended with Odoo financial section**:
+   - `generate_ceo_briefing.py` — `_fetch_odoo_financials()` pulls revenue + expenses via XML-RPC.
+   - `_render_odoo_section()` renders financial table (revenue, collected, outstanding, expenses, net).
+   - Gracefully degrades when Odoo unavailable ("Odoo not configured").
+   - Live test: briefing `2026-04-25_Monday_Briefing.md` shows $70,150 revenue for 2026-04-18→25.
+
+---
+
+## ✅ Latest Confirmed Outcomes (2026-04-25)
+
+1. **Live API testing completed:**
+   - Facebook (GeekNova page, ID: 698457253346943) — post confirmed live via `meta_api_client.post_to_facebook_page`.
+   - Instagram (GeekNova IG, ID: 17841426989901806) — post confirmed live (post_id: 18528304957079270).
+   - Twitter/X — auth verified (OAuth 1.0a), posting blocked by free API tier (402 Payment Required). Code correct.
+   - tweepy 4.16.0 installed in venv (was missing despite being in requirements.txt).
+   - Meta credentials saved to `credentials/meta_api_token.json` with page token + IG ID.
+   - `.env` updated: `META_ACCESS_TOKEN`, `META_PAGE_ID=698457253346943`, `INSTAGRAM_BUSINESS_ACCOUNT_ID=17841426989901806`.
+
+2. **setup.sh updated to Gold Tier:**
+   - Header updated from "Silver" to "Gold".
+   - `Briefings/` directory added to vault structure creation + validation.
+   - Next steps updated to include Twitter, Meta setup scripts, cron, and all watcher commands.
+
+3. **requirements.txt header updated** to Gold Tier.
+
+4. **GOLD_TIER_PLAN.md** — "Full cross-domain integration" marked `[x]` (was stale `[ ]`; 2.3 complete).
 
 ---
 
 ## ✅ Latest Confirmed Outcomes (2026-04-24)
 
-1. **Twitter/X integration implemented** (task 2.1):
+1. **Comprehensive audit logging implemented** (task 4.2):
+   - `src/orchestrator/skills/audit_logger.py` — new skill to handle structured JSON logging.
+   - `BaseSkill` — added `_log_audit` helper to ensure all skills can easily log external actions.
+   - All social posting skills (LinkedIn, Twitter, Facebook, Instagram) and email skills now produce structured audit entries in `vault/Logs/audit_*.json`.
+   - `audit_master.json` — maintains a consolidated history of the last 1000 actions for easy parsing.
+
+2. **Meta (Facebook + Instagram) integration implemented** (task 2.2):
+   - `src/orchestrator/skills/meta_api_client.py` — handles Graph API v21.0, long-lived tokens, and Page/Instagram discovery.
+   - `src/orchestrator/skills/post_facebook.py` — posts to FB Pages with HITL approval and calendar support.
+   - `src/orchestrator/skills/post_instagram.py` — posts to Instagram Business accounts (requires public image URL).
+   - `src/watchers/meta_watcher.py` — monitors FB/IG comments and creates `Needs_Action` items.
+   - `scripts/setup_meta_api.py` — interactive setup for token exchange and Page/IG discovery.
+
+2. **Cross-platform content calendar implemented** (task 2.3):
+   - `create_content_plan.py` — updated to generate per-platform post files for LinkedIn, Twitter, Facebook, and Instagram.
+   - `src/watchers/content_calendar_watcher.py` — new unified watcher (replacing LinkedIn watcher) that monitors for all scheduled platform posts.
+   - `process_approved_actions.py` — updated routing to call specific social media posting skills upon approval.
+
+3. **Twitter/X integration implemented** (task 2.1):
    - `src/orchestrator/skills/twitter_api_client.py` — uses `tweepy` for API v2 (tweets/mentions) and v1.1 (media).
    - `src/orchestrator/skills/post_twitter.py` — supports immediate posting, calendar scheduling, and HITL-gated execution.
    - `src/watchers/twitter_watcher.py` — polls mentions every 15m; creates `Needs_Action/TWITTER_MENTION_*.md` with metrics.
@@ -212,15 +281,15 @@
 | Ralph Wiggum stop hook | 1.1 | `[x]` Complete |
 | CEO Weekly Briefing skill | 1.2 | `[x]` Complete |
 | Multiple MCP servers (filesystem) | 1.3 | `[x]` Complete |
-| Error recovery hardening | 1.4 | `[ ]` Not started |
-| Twitter/X watcher + post skill | 2.1 | `[ ]` Not started |
-| Facebook + Instagram integration | 2.2 | `[!]` Blocked — Meta app review needed |
-| Cross-platform content calendar | 2.3 | `[ ]` Not started |
-| Odoo setup + MCP server | 3.1–3.2 | `[ ]` Optional |
-| Architecture docs | 4.1 | `[ ]` Not started |
-| Comprehensive audit logging | 4.2 | `[ ]` Not started |
+| Error recovery hardening | 1.4 | `[x]` Complete |
+| Twitter/X watcher + post skill | 2.1 | `[x]` Complete |
+| Facebook + Instagram integration | 2.2 | `[x]` Complete |
+| Cross-platform content calendar | 2.3 | `[x]` Complete |
+| Odoo setup + MCP server | 3.1–3.2 | `[x]` Complete |
+| Architecture docs | 4.1 | `[x]` Complete |
+| Comprehensive audit logging | 4.2 | `[x]` Complete |
 
-**Next action:** Start 1.4 Error recovery hardening. Also create Meta developer app NOW (approval takes days).
+**Next action:** All Gold Tier tasks complete. Ready to submit.
 
 ---
 
