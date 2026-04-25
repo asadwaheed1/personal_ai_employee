@@ -1,169 +1,150 @@
-# 🚀 START HERE - Bronze Tier AI Employee
+# Personal AI Employee — Gold Tier v3.0
 
-**Welcome!** This is your entry point to the Bronze Tier Personal AI Employee implementation.
+Production-ready AI employee: email, LinkedIn, Twitter/X, Facebook, Instagram, Odoo ERP, CEO briefings, HITL approvals, autonomous operation.
 
 ## What You Have
 
-A **complete, production-ready Bronze Tier AI Employee** that:
-- Monitors folders for new files
-- Processes them automatically with Claude Code
-- Recovers from crashes automatically
-- Prevents race conditions and duplicate processing
-- Logs everything comprehensively
+All three tiers complete:
 
-## Quick Navigation
-
-### 🏃 Want to Get Started Immediately?
-→ Read **[QUICKSTART.md](QUICKSTART.md)** (30 minutes)
-
-### 📖 Want to Understand the Architecture?
-→ Read **[BRONZE_TIER_IMPLEMENTATION.md](BRONZE_TIER_IMPLEMENTATION.md)**
-
-### 🧪 Want to Test the System?
-→ Read **[TESTING.md](TESTING.md)** (12 test scenarios)
-
-### 🔍 Want to See What Was Built?
-→ Read **[BRONZE_TIER_COMPLETION.md](BRONZE_TIER_COMPLETION.md)**
-### 🛠️ Want to Use Agent Skills?
-  Read **[AGENT_SKILLS_QUICK_REFERENCE.md](AGENT_SKILLS_QUICK_REFERENCE.md)**
-
-### ✅ Want to Verify Before Testing?
-→ Read **[VERIFICATION_CHECKLIST.md](VERIFICATION_CHECKLIST.md)**
+| Tier | Capabilities |
+|------|-------------|
+| **Bronze** | File-based task processing, Obsidian vault, dashboard, HITL approval workflow |
+| **Silver** | Gmail + LinkedIn automation, MCP servers, content calendar, retry logic, cron scheduling |
+| **Gold** | Twitter/X, Facebook, Instagram, Odoo ERP, CEO briefings, cross-platform calendar, audit logging, autonomous stop hook |
 
 ## 5-Minute Quick Start
 
 ```bash
 # 1. Install dependencies
-pip3 install -r requirements.txt
+pip install -r requirements.txt
 
-# 2. Setup the system
+# 2. Setup vault + cron
 ./setup.sh
+./scripts/setup_cron.sh
 
-# 3. Start the system
+# 3. Configure credentials
+cp .env.example .env
+# Edit .env — add Gmail, LinkedIn, Twitter, Meta, Odoo credentials
+
+# 4. Authenticate APIs
+python scripts/setup_linkedin_api.py     # LinkedIn OAuth
+python scripts/setup_meta_api.py         # Facebook + Instagram tokens
+
+# 5. Start the system
 ./start.sh
 
-# 4. In another terminal, drop a test file
-echo "Test task" > ai_employee_vault/Inbox/test.md
-
-# 5. Watch the logs
-tail -f ai_employee_vault/Logs/*.log
-
-# 6. Stop when done
-./stop.sh
+# 6. Verify health
+python scripts/health_check.py
 ```
 
-## What Happens When You Start?
+## What Happens When You Start
 
-1. **Watchdog** starts and monitors all processes
-2. **Orchestrator** starts and polls folders every 30s
-3. **File System Watcher** starts and monitors Inbox/
-4. You drop a file → Watcher detects it → Creates metadata
-5. Orchestrator triggers Claude → Claude processes → Files move to Done/
+1. **Watcher Manager** launches Gmail watcher + content calendar watcher
+2. **Orchestrator** polls vault folders every 30s
+3. **Gmail Watcher** monitors inbox → creates `Needs_Action/EMAIL_*.md`
+4. **Content Calendar Watcher** monitors scheduled posts → routes to social skills
+5. **Ralph Wiggum Hook** keeps Claude running while `Needs_Action/` has pending items
+6. **Monday 7 AM cron** generates CEO Weekly Briefing with live Odoo financials
 
-## File Structure Overview
+## Vault Structure
 
 ```
-personal_ai_employee/
-├── START_HERE.md              ← You are here
-├── QUICKSTART.md              ← 30-minute guide
-├── BRONZE_TIER_COMPLETION.md      ← What was built
-### 🛠️ Want to Use Agent Skills?
-  Read **[AGENT_SKILLS_QUICK_REFERENCE.md](AGENT_SKILLS_QUICK_REFERENCE.md)**
-│
-├── ai_employee_vault/         ← The vault (Obsidian)
-│   ├── Inbox/                 ← Drop files here
-│   ├── Needs_Action/          ← Processing queue
-│   ├── Done/                  ← Completed items
-│   ├── Dashboard.md           ← Status dashboard
-│   └── Logs/                  ← System logs
-│
-├── src/                       ← Source code
-│   ├── watchers/              ← File monitoring
-│   └── orchestrator/          ← Coordination
-│
-├── setup.sh                   ← Run this first
-├── start.sh                   ← Start the system
-└── stop.sh                    ← Stop the system
+ai_employee_vault/
+├── Inbox/              ← Drop tasks here
+├── Needs_Action/       ← Active processing queue
+├── Pending_Approval/   ← HITL gate (review here)
+├── Approved/           ← Move here to authorize
+├── Rejected/           ← Rejected actions
+├── Done/               ← Completed tasks
+├── Plans/              ← Strategic plans
+├── Briefings/          ← CEO Weekly Briefings (auto Mon 7 AM)
+├── Content_Calendar/   ← Cross-platform scheduled posts
+├── Logs/               ← Orchestrator + audit JSON logs
+└── Dashboard.md        ← Live system status
 ```
 
-## Common Questions
+## Key Scripts
 
-### Q: What do I need installed?
-- Python 3.8+
-- Claude Code CLI
-- Linux or macOS (Windows needs WSL)
+```bash
+# System control
+./start.sh                                          # Start everything
+./stop.sh                                           # Stop everything
+python scripts/health_check.py                      # API health + dashboard update
 
-### Q: How do I know it's working?
-- Check logs in `ai_employee_vault/Logs/`
-- Drop a test file and watch it move from Inbox → Needs_Action → Done
-- Dashboard.md should update with activity
+# Content
+python src/orchestrator/skills/create_content_plan.py   # Generate cross-platform calendar
+python src/orchestrator/skills/generate_ceo_briefing.py ./ai_employee_vault  # Manual briefing
 
-### Q: What if something breaks?
-- Check `TESTING.md` for troubleshooting
-- Review logs for errors
-- Check `VERIFICATION_CHECKLIST.md` for common issues
+# Watchers (manual)
+python src/watchers/twitter_watcher.py ./ai_employee_vault   # Poll Twitter mentions
+python src/watchers/meta_watcher.py ./ai_employee_vault      # Poll FB/IG comments
 
-### Q: Can I customize it?
-- Edit `ai_employee_vault/Company_Handbook.md` for rules
-- Adjust check intervals in `start.sh`
-- Add new watchers in `src/watchers/`
+# Audit
+cat ai_employee_vault/Logs/audit_master.json | python -m json.tool | tail -50
 
-## What Was Fixed
+# MCP processor (manual)
+python src/orchestrator/mcp_processor.py ./ai_employee_vault
 
-All 10 critical issues from the design review were addressed:
-1. ✅ Claude Code integration (instruction file pattern)
-2. ✅ Race conditions (global locking)
-3. ✅ State persistence (JSON files)
-4. ✅ File workflow (clarified paths)
-5. ✅ Approval monitoring (complete)
-6. ✅ Error recovery (watchdog)
-7. ✅ Dashboard corruption (atomic updates)
-8. ✅ Edge cases (temp filtering)
-9. ✅ Input validation (sanitization)
-10. ✅ Logging (comprehensive)
+# Logs
+tail -f ai_employee_vault/Logs/orchestrator_$(date +%Y-%m-%d).log
+```
 
-## Next Steps
+## Quick Navigation
 
-1. **Read QUICKSTART.md** to understand the system
-2. **Run ./setup.sh** to initialize
-3. **Run ./start.sh** to start the system
-4. **Drop a test file** to verify it works
-5. **Follow TESTING.md** for comprehensive testing
-6. **Review logs** to understand behavior
-7. **Customize** Company_Handbook.md for your needs
+| Goal | Document |
+|------|----------|
+| Full setup walkthrough | [QUICKSTART.md](QUICKSTART.md) |
+| Gold Tier task breakdown | [GOLD_TIER_PLAN.md](GOLD_TIER_PLAN.md) |
+| Silver Tier testing | [SILVER_TIER_TESTING_GUIDE.md](SILVER_TIER_TESTING_GUIDE.md) |
+| Email workflow | [EMAIL_WORKFLOW_GUIDE.md](EMAIL_WORKFLOW_GUIDE.md) |
+| LinkedIn setup | [LINKEDIN_SETUP_QUICK_REF.md](LINKEDIN_SETUP_QUICK_REF.md) |
+| Agent Skills reference | [AGENT_SKILLS_QUICK_REFERENCE.md](AGENT_SKILLS_QUICK_REFERENCE.md) |
+| Bronze architecture | [BRONZE_TIER_DOCS.md](BRONZE_TIER_DOCS.md) |
+| Test scenarios | [TESTING.md](TESTING.md) |
 
-## Documentation Index
+## HITL Approval Flow
 
-| Document | Purpose | Time |
-|----------|---------|------|
-| **START_HERE.md** | Entry point (this file) | 5 min |
-| **QUICKSTART.md** | Getting started guide | 30 min |
-| **BRONZE_TIER_IMPLEMENTATION.md** | Complete architecture | 45 min |
-| **TESTING.md** | Test scenarios | 2 hours |
-| **PROJECT_STRUCTURE.md** | File organization | 20 min |
-| **BRONZE_TIER_COMPLETION.md** | What was built | 10 min |
-### 🛠️ Want to Use Agent Skills?
-  Read **[AGENT_SKILLS_QUICK_REFERENCE.md](AGENT_SKILLS_QUICK_REFERENCE.md)**
-| **VERIFICATION_CHECKLIST.md** | Pre-testing checks | 15 min |
-| **IMPLEMENTATION_SUMMARY.md** | Technical summary | 15 min |
+Sensitive actions (invoice creation, social posts, email replies) require human approval:
 
-## Support
+1. Skill writes approval request → `Pending_Approval/`
+2. Review the file, edit if needed
+3. Move to `Approved/` → orchestrator executes
+4. Result archived to `Done/`
 
-- **Logs**: `ai_employee_vault/Logs/`
-- **Alerts**: `ai_employee_vault/Logs/ALERTS.md`
-- **State**: `ai_employee_vault/.state/*.json`
-- **Documentation**: All the .md files above
+## Social Posting
+
+Post immediately or via content calendar:
+
+```bash
+# Create a cross-platform content plan (LI + TW + FB + IG)
+python src/orchestrator/skills/create_content_plan.py
+
+# Files land in Content_Calendar/ — calendar watcher picks them up at scheduled time
+# Each platform post goes through HITL approval before publishing
+```
+
+## Odoo ERP
+
+Odoo Community 17 runs via Docker:
+
+```bash
+cd docker && docker-compose up -d   # Start Odoo on port 8069
+# CEO Briefing auto-pulls revenue + expenses via XML-RPC
+# Draft invoices created via HITL approval flow
+```
+
+## Autonomous Mode (Ralph Wiggum)
+
+```bash
+./scripts/start_ralph_wiggum.sh     # Start autonomous processing session
+# Stop hook keeps Claude running while Needs_Action/ has pending items
+# Max iterations controlled by MAX_ITERATIONS in .env
+```
 
 ## Status
 
-✅ **Implementation**: COMPLETE  
-⏳ **Testing**: PENDING  
-⏳ **Deployment**: PENDING  
+✅ **Bronze Tier**: Complete  
+✅ **Silver Tier**: Complete  
+✅ **Gold Tier**: Complete  
 
-**Version**: 1.0-bronze  
-**Date**: 2026-02-25  
-**Git Commit**: 8bbcd25  
-
----
-
-**Ready to begin? Start with [QUICKSTART.md](QUICKSTART.md)! 🚀**
+**Version**: 3.0-gold | **Date**: 2026-04-25

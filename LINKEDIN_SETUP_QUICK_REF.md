@@ -72,9 +72,10 @@ python scripts/setup_linkedin_api.py
 
 ## Notes
 - LinkedIn message monitoring is not supported through standard API access.
-- Current LinkedIn watcher is focused on content calendar + posting workflow.
+- Gold Tier uses `content_calendar_watcher.py` — unified watcher for LI/TW/FB/IG.
+- LinkedIn is one of four platforms driven by the cross-platform content calendar.
 
 ---
 
-**Last Updated:** 2026-04-11
-**Status:** Authenticated and validated
+**Last Updated:** 2026-04-25
+**Status:** Authenticated and validated — Gold Tier cross-platform calendar active

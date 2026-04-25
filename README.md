@@ -3,7 +3,7 @@
 An intelligent automation system that processes tasks, manages workflows, and integrates with Obsidian for visual task management. Built with Claude Code and designed for personal productivity and business automation.
 
 ![Status](https://img.shields.io/badge/status-production%20ready-brightgreen)
-![Version](https://img.shields.io/badge/version-2.0%20(Silver%20Tier)-blue)
+![Version](https://img.shields.io/badge/version-3.0%20(Gold%20Tier)-gold)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 
 ---
@@ -13,12 +13,12 @@ An intelligent automation system that processes tasks, manages workflows, and in
 The Personal AI Employee is a three-tier automation system designed to handle personal and business tasks with increasing levels of sophistication:
 
 - **Bronze Tier** (Complete): File-based task processing with Obsidian integration
-- **Silver Tier** (Current): Email and LinkedIn automation with MCP integration
-- **Gold Tier** (Planned): Advanced automation with calendar and WhatsApp
+- **Silver Tier** (Complete): Email and LinkedIn automation with MCP integration
+- **Gold Tier** (Current): Social media, Odoo ERP, CEO briefings, audit logging
 
 ---
 
-## ✨ Features (Silver Tier)
+## ✨ Features (Gold Tier)
 
 ### Core Features (Bronze Tier)
 - ✅ **Automated Task Processing** - Drop markdown files, get results automatically
@@ -30,7 +30,7 @@ The Personal AI Employee is a three-tier automation system designed to handle pe
 - ✅ **Human-in-the-Loop** - Approval workflow for sensitive actions
 - ✅ **Configurable Rules** - Customize behavior via Company Handbook
 
-### New Silver Tier Features
+### Silver Tier Features
 - ✅ **Gmail Integration** - Automatic email monitoring and processing
 - ✅ **LinkedIn Automation** - Official API posting with OAuth 2.0 token management and approval workflow
 - ✅ **MCP Server Integration** - Gmail MCP server for external actions
@@ -40,6 +40,18 @@ The Personal AI Employee is a three-tier automation system designed to handle pe
 - ✅ **Retry Logic** - Smart retry with exponential backoff for API failures
 - ✅ **Edge Case Handling** - Comprehensive validation and error handling
 - ✅ **Scheduled Tasks** - Cron/Task Scheduler integration for automation
+
+### New Gold Tier Features
+- ✅ **Twitter/X Integration** - Tweepy-based posting skill + mention watcher (HITL-gated)
+- ✅ **Facebook + Instagram** - Meta Graph API v21.0 posting + comment watcher
+- ✅ **Cross-Platform Content Calendar** - Unified JSON plan drives LI/TW/FB/IG scheduling
+- ✅ **Odoo ERP Integration** - XML-RPC revenue/expense queries; draft invoice with HITL approval
+- ✅ **Odoo MCP Server** - `odoo-mcp` npm server wired into `.mcp.json`
+- ✅ **CEO Weekly Briefing** - Auto-generated Monday briefing with live Odoo financials
+- ✅ **Multiple MCP Servers** - Gmail + filesystem + Odoo MCP servers active simultaneously
+- ✅ **Ralph Wiggum Stop Hook** - Autonomous session continuation when `Needs_Action/` has pending items
+- ✅ **Comprehensive Audit Logging** - Structured JSON audit trail for all external actions
+- ✅ **Error Recovery Hardening** - Gmail MCP queuing, LinkedIn retry, vault lock + overflow sync, health check
 
 ---
 
@@ -80,6 +92,10 @@ cp .env.example .env
 # Setup LinkedIn API OAuth
 python scripts/setup_linkedin_api.py
 # Token saved to credentials/linkedin_api_token.json
+
+# Setup Meta (Facebook + Instagram) API
+python scripts/setup_meta_api.py
+# Token saved to credentials/meta_api_token.json
 
 # Setup scheduling (optional)
 ./scripts/setup_cron.sh  # Linux/Mac
@@ -146,22 +162,32 @@ personal_ai_employee/
 │
 ├── src/
 │   ├── watchers/
-│   │   ├── gmail_watcher.py       # Gmail monitoring
-│   │   ├── run_gmail_watcher.py   # Gmail watcher entry point
-│   │   ├── linkedin_watcher.py    # LinkedIn calendar/check automation
-│   │   └── run_linkedin_watcher.py # LinkedIn watcher entry point
+│   │   ├── gmail_watcher.py           # Gmail monitoring
+│   │   ├── run_gmail_watcher.py       # Gmail watcher entry point
+│   │   ├── content_calendar_watcher.py # Cross-platform calendar watcher
+│   │   ├── twitter_watcher.py         # Twitter/X mention watcher
+│   │   └── meta_watcher.py            # Facebook + Instagram comment watcher
 │   │
 │   └── orchestrator/
-│       ├── watchdog.py            # Process monitor
-│       ├── orchestrator.py        # Main orchestrator
-│       ├── watcher_manager.py     # Multi-watcher management
-│       ├── mcp_processor.py       # MCP action processor
-│       └── skills/                # Agent Skills
-│           ├── base_skill.py      # Base class
-│           ├── send_email.py      # Email sending
-│           ├── process_email_actions.py # Email processing
-│           ├── post_linkedin.py   # LinkedIn posting
-│           ├── create_content_plan.py # Content calendar
+│       ├── watchdog.py                # Process monitor
+│       ├── orchestrator.py            # Main orchestrator
+│       ├── watcher_manager.py         # Multi-watcher management
+│       ├── mcp_processor.py           # MCP action processor
+│       └── skills/                    # Agent Skills
+│           ├── base_skill.py          # Base class
+│           ├── send_email.py          # Email sending
+│           ├── process_email_actions.py
+│           ├── post_linkedin.py       # LinkedIn posting
+│           ├── post_twitter.py        # Twitter/X posting
+│           ├── post_facebook.py       # Facebook posting
+│           ├── post_instagram.py      # Instagram posting
+│           ├── meta_api_client.py     # Meta Graph API client
+│           ├── twitter_api_client.py  # Tweepy client
+│           ├── linkedin_api_client.py # LinkedIn API client
+│           ├── odoo_accounting.py     # Odoo ERP skill
+│           ├── generate_ceo_briefing.py # CEO Weekly Briefing
+│           ├── audit_logger.py        # Structured audit logging
+│           ├── create_content_plan.py # Cross-platform content calendar
 │           ├── gmail_retry_handler.py # Retry logic
 │           ├── process_needs_action.py
 │           ├── update_dashboard.py
@@ -179,7 +205,9 @@ personal_ai_employee/
     ├── Pending_Approval/       # Awaiting approval
     ├── Approved/               # Approved tasks
     ├── Rejected/               # Rejected tasks
-    ├── Logs/                   # Activity logs
+    ├── Briefings/              # CEO Weekly Briefings (auto-generated Mondays)
+    ├── Content_Calendar/       # Cross-platform scheduled posts
+    ├── Logs/                   # Activity logs + audit JSON
     ├── Dashboard.md            # System status
     ├── Company_Handbook.md     # Rules & guidelines
     └── README.md               # Vault guide
@@ -192,6 +220,7 @@ personal_ai_employee/
 | Document | Description |
 |----------|-------------|
 | **[START_HERE.md](START_HERE.md)** | Getting started guide |
+| **[GOLD_TIER_PLAN.md](GOLD_TIER_PLAN.md)** | Gold Tier implementation plan |
 | **[SILVER_TIER_TESTING_GUIDE.md](SILVER_TIER_TESTING_GUIDE.md)** | Silver Tier testing guide |
 | **[SILVER_TIER_DEMO.md](SILVER_TIER_DEMO.md)** | Complete demo results |
 | **[EMAIL_WORKFLOW_GUIDE.md](EMAIL_WORKFLOW_GUIDE.md)** | Email processing workflow |
@@ -297,10 +326,19 @@ python watcher_manager.py ./ai_employee_vault stop
 # Run MCP processor manually
 python src/orchestrator/mcp_processor.py ./ai_employee_vault
 
+# Run health check
+python scripts/health_check.py
+
+# Generate CEO briefing manually
+python src/orchestrator/skills/generate_ceo_briefing.py ./ai_employee_vault
+
 # View live logs
 tail -f ai_employee_vault/Logs/orchestrator_$(date +%Y-%m-%d).log
 tail -f ai_employee_vault/Logs/gmail_watcher_$(date +%Y-%m-%d).log
 tail -f ai_employee_vault/Logs/mcp_processor_$(date +%Y-%m-%d).log
+
+# View audit log
+cat ai_employee_vault/Logs/audit_master.json | python -m json.tool | tail -50
 
 # Check Dashboard
 cat ai_employee_vault/Dashboard.md
@@ -371,13 +409,17 @@ See [BRONZE_TIER_DOCS.md](BRONZE_TIER_DOCS.md) for complete troubleshooting guid
 - Retry logic and edge case handling
 - Scheduled task execution
 
-### 🚧 Gold Tier (Planned)
-- WhatsApp integration
-- Calendar sync (Google Calendar)
-- Advanced analytics and reporting
-- Multi-user support
-- Custom workflow builder
-- Mobile app integration
+### ✅ Gold Tier (Complete)
+- Twitter/X watcher + HITL posting skill
+- Facebook + Instagram via Meta Graph API
+- Cross-platform content calendar (LI/TW/FB/IG)
+- Odoo Community ERP — revenue/expense queries + draft invoice HITL
+- Odoo MCP server integration
+- CEO Weekly Briefing with live financial data
+- Multiple MCP servers (Gmail + filesystem + Odoo)
+- Ralph Wiggum autonomous stop hook
+- Comprehensive structured audit logging
+- Error recovery hardening + health check utility
 
 ---
 
@@ -429,4 +471,4 @@ Perfect for learning about AI-native development and personal automation systems
 
 ---
 
-**Personal AI Employee** | Silver Tier v2.0 | Production Ready | 2026-04-03
+**Personal AI Employee** | Gold Tier v3.0 | Production Ready | 2026-04-25

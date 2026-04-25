@@ -1,224 +1,197 @@
 # Agent Skills Quick Reference
 
-## Bronze Tier Agent Skills - Quick Start Guide
+**Version:** 3.0-gold | **Last Updated:** 2026-04-25
 
-## Skills Overview
+All AI functionality is implemented as Agent Skills. Skills accept JSON params and return `{"success": bool, "result": {...}, "timestamp": "..."}`.
 
-| Skill | Purpose | Usage |
-|-------|---------|-------|
-| `process_needs_action` | Process files in Needs_Action | `python skills/process_needs_action.py '{"vault_path": "/path/to/vault"}'` |
-| `update_dashboard` | Update dashboard status | `python skills/update_dashboard.py '{"vault_path": "/path/to/vault", "status": "operational"}'` |
-| `create_plan` | Generate action plans | `python skills/create_plan.py '{"vault_path": "/path/to/vault", "task_description": "..."}'` |
-| `create_approval_request` | Create approval requests | `python skills/create_approval_request.py '{"vault_path": "/path/to/vault", "action_type": "payment", ...}'` |
-| `parse_watcher_file` | Parse watcher files | `python skills/parse_watcher_file.py '{"file_path": "/path/to/file.md"}'` |
-| `process_inbox` | Process Inbox files | `python skills/process_inbox.py '{"vault_path": "/path/to/vault"}'` |
-| `process_approved_actions` | Execute approved actions | `python skills/process_approved_actions.py '{"vault_path": "/path/to/vault"}'` |
+---
 
-## Common Usage Patterns
+## Bronze Tier Skills
 
-### 1. Process a New Task
+| Skill | Purpose |
+|-------|---------|
+| `process_needs_action` | Process files in Needs_Action |
+| `update_dashboard` | Update Dashboard.md status |
+| `create_plan` | Generate structured action plans |
+| `create_approval_request` | Create HITL approval requests |
+| `parse_watcher_file` | Extract metadata from watcher files |
+| `process_inbox` | Process files in Inbox |
+| `process_approved_actions` | Execute approved actions |
 
+---
+
+## Silver Tier Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `send_email` | Send email via Gmail MCP |
+| `process_email_actions` | Parse email file → create MCP action files |
+| `post_linkedin` | LinkedIn posting with HITL approval |
+| `linkedin_api_client` | LinkedIn API OAuth + posting client |
+| `create_content_plan` | Cross-platform content calendar |
+| `gmail_retry_handler` | Retry decorator for transient Gmail errors |
+
+---
+
+## Gold Tier Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `post_twitter` | Twitter/X posting with HITL approval |
+| `twitter_api_client` | Tweepy client (API v2 + v1.1 media) |
+| `post_facebook` | Facebook Page posting with HITL approval |
+| `post_instagram` | Instagram Business posting with HITL approval |
+| `meta_api_client` | Meta Graph API v21.0 client |
+| `odoo_accounting` | Odoo ERP revenue/expense/invoice via XML-RPC |
+| `generate_ceo_briefing` | CEO Weekly Briefing with Odoo financials |
+| `audit_logger` | Structured JSON audit logging for all external actions |
+
+---
+
+## Usage Examples
+
+### Post to LinkedIn (HITL)
 ```bash
-# Drop file in Inbox first, then run:
-python src/orchestrator/skills/process_inbox.py '{
-  "vault_path": "/home/asad/piaic/projects/personal_ai_employee/ai_employee_vault"
+python -m src.orchestrator.skills.post_linkedin '{
+  "action": "create_post",
+  "content": "Post text here #automation"
+}'
+# Move Pending_Approval/LINKEDIN_POST_*.md → Approved/ to publish
+```
+
+### Post to Twitter/X (HITL)
+```bash
+python -m src.orchestrator.skills.post_twitter '{
+  "action": "create_post",
+  "content": "Tweet text here (max 280 chars)"
 }'
 ```
 
-### 2. Process Pending Actions
-
+### Post to Facebook (HITL)
 ```bash
-python src/orchestrator/skills/process_needs_action.py '{
-  "vault_path": "/home/asad/piaic/projects/personal_ai_employee/ai_employee_vault"
+python -m src.orchestrator.skills.post_facebook '{
+  "action": "create_post",
+  "content": "Facebook post text"
 }'
 ```
 
-### 3. Create an Approval Request
-
+### Post to Instagram (HITL — needs public image URL)
 ```bash
-python src/orchestrator/skills/create_approval_request.py '{
-  "vault_path": "/home/asad/piaic/projects/personal_ai_employee/ai_employee_vault",
-  "action_type": "payment",
-  "action_details": {
-    "amount": 500.00,
-    "recipient": "Client A",
-    "reference": "INV-001"
-  },
-  "reason": "Payment for completed services"
+python -m src.orchestrator.skills.post_instagram '{
+  "action": "create_post",
+  "caption": "Caption here",
+  "image_url": "https://example.com/image.jpg"
 }'
 ```
 
-### 4. Update Dashboard Status
+### Cross-Platform Content Calendar
+```bash
+python src/orchestrator/skills/create_content_plan.py
+# Generates JSON + MD files in Content_Calendar/ for LI/TW/FB/IG
+# content_calendar_watcher.py picks them up at scheduled time
+```
 
+### Odoo Revenue Query
+```python
+from src.orchestrator.skills.odoo_accounting import OdooAccountingSkill
+skill = OdooAccountingSkill('./ai_employee_vault')
+result = skill.get_revenue_summary(date_from='2026-04-01', date_to='2026-04-30')
+```
+
+### Create Draft Invoice (HITL)
+```python
+result = skill.create_draft_invoice(
+    partner_id=...,
+    lines=[{"name": "Service", "price_unit": 1500.0, "quantity": 1}]
+)
+# Creates DRAFT only — writes approval file to Pending_Approval/
+```
+
+### Generate CEO Briefing
+```bash
+python src/orchestrator/skills/generate_ceo_briefing.py ./ai_employee_vault
+# Writes to ai_employee_vault/Briefings/YYYY-MM-DD_Monday_Briefing.md
+```
+
+### Audit Logger (used internally by all skills)
+```python
+from src.orchestrator.skills.audit_logger import AuditLogger
+logger = AuditLogger('./ai_employee_vault')
+logger.log_action(
+    platform='twitter',
+    action='post_tweet',
+    status='success',
+    details={'tweet_id': '...'}
+)
+# Appends to Logs/audit_YYYY-MM-DD.json + Logs/audit_master.json
+```
+
+### Process Email Actions
+```bash
+python -m src.orchestrator.skills.process_email_actions '{
+  "email_file": "ai_employee_vault/Needs_Action/EMAIL_xxx.md"
+}'
+```
+
+### Update Dashboard
 ```bash
 python src/orchestrator/skills/update_dashboard.py '{
-  "vault_path": "/home/asad/piaic/projects/personal_ai_employee/ai_employee_vault",
-  "activity_log": "Task completed successfully",
+  "vault_path": "/path/to/vault",
+  "activity_log": "Task completed",
   "status": "operational"
 }'
 ```
 
-### 5. Create a Task Plan
-
-```bash
-python src/orchestrator/skills/create_plan.py '{
-  "vault_path": "/home/asad/piaic/projects/personal_ai_employee/ai_employee_vault",
-  "task_description": "Process monthly invoices and send reminders",
-  "priority": "high"
-}'
-```
-
-### 6. Execute Approved Actions
-
-```bash
-python src/orchestrator/skills/process_approved_actions.py '{
-  "vault_path": "/home/asad/piaic/projects/personal_ai_employee/ai_employee_vault"
-}'
-```
-
-## File Paths
-
-- **Vault**: `/home/asad/piaic/projects/personal_ai_employee/ai_employee_vault`
-- **Skills**: `/home/asad/piaic/projects/personal_ai_employee/src/orchestrator/skills/`
-- **Skills Manifest**: `/home/asad/piaic/projects/personal_ai_employee/.claude/tools/bronze_tier_skills.json`
-- **Logs**: `/home/asad/piaic/projects/personal_ai_employee/ai_employee_vault/Logs/`
-
-## Testing Skills
-
-### Test Individual Skills
-
-```bash
-# Test process_needs_action
-python src/orchestrator/skills/process_needs_action.py '{
-  "vault_path": "/home/asad/piaic/projects/personal_ai_employee/ai_employee_vault"
-}'
-
-# Test update_dashboard
-python src/orchestrator/skills/update_dashboard.py '{
-  "vault_path": "/home/asad/piaic/projects/personal_ai_employee/ai_employee_vault",
-  "status": "operational"
-}'
-```
-
-### Test Complete Workflow
-
-```bash
-# 1. Create a test file in Inbox
-cat > ai_employee_vault/Inbox/test_task.md << 'EOF'
----
-type: task
-priority: high
 ---
 
-# Test Task
+## Skill Manifest
 
-This is a test task for the AI Employee.
-EOF
+```
+.claude/tools/bronze_tier_skills.json   # Skills manifest
 
-# 2. Process the inbox
-python src/orchestrator/skills/process_inbox.py '{
-  "vault_path": "/home/asad/piaic/projects/personal_ai_employee/ai_employee_vault"
-}'
-
-# 3. Check Needs_Action
-ls -la ai_employee_vault/Needs_Action/
-
-# 4. Process needs action
-python src/orchestrator/skills/process_needs_action.py '{
-  "vault_path": "/home/asad/piaic/projects/personal_ai_employee/ai_employee_vault"
-}'
-
-# 5. Check dashboard
-cat ai_employee_vault/Dashboard.md
-
-# 6. Check Done folder
-ls -la ai_employee_vault/Done/
+src/orchestrator/skills/
+├── base_skill.py                       # Base class + _log_audit helper
+├── audit_logger.py                     # Gold: structured audit logging
+├── generate_ceo_briefing.py            # Gold: CEO Weekly Briefing
+├── odoo_accounting.py                  # Gold: Odoo ERP integration
+├── post_twitter.py                     # Gold: Twitter/X posting
+├── twitter_api_client.py               # Gold: Tweepy client
+├── post_facebook.py                    # Gold: Facebook posting
+├── post_instagram.py                   # Gold: Instagram posting
+├── meta_api_client.py                  # Gold: Meta Graph API client
+├── post_linkedin.py                    # Silver: LinkedIn posting
+├── linkedin_api_client.py              # Silver: LinkedIn API client
+├── send_email.py                       # Silver: email sending
+├── process_email_actions.py            # Silver: email parsing + MCP routing
+├── create_content_plan.py              # Silver/Gold: content calendar
+├── gmail_retry_handler.py              # Silver: Gmail retry decorator
+├── process_needs_action.py             # Bronze: process queue
+├── update_dashboard.py                 # Bronze: dashboard updates
+├── create_plan.py                      # Bronze: action plans
+├── create_approval_request.py          # Bronze: HITL requests
+├── parse_watcher_file.py               # Bronze: parse watcher output
+├── process_inbox.py                    # Bronze: inbox processing
+└── process_approved_actions.py         # Bronze: execute approved
 ```
 
-## Skill Return Format
+---
 
-All skills return JSON in this format:
+## BaseSkill Pattern
 
-```json
-{
-  "success": true,
-  "result": {
-    // Skill-specific result data
-  },
-  "timestamp": "2026-03-28T10:30:00"
-}
+```python
+from src.orchestrator.skills.base_skill import BaseSkill
+
+class MySkill(BaseSkill):
+    def execute(self, params):
+        # All skills have access to:
+        # self.vault_path     — Path to vault
+        # self._log_audit(...)  — Write structured audit entry
+        # self.logger         — Standard Python logger
+        pass
 ```
 
-On error:
+---
 
-```json
-{
-  "success": false,
-  "error": "Error message here",
-  "timestamp": "2026-03-28T10:30:00"
-}
-```
+## Full Documentation
 
-## Monitoring
-
-### View Skill Logs
-
-```bash
-# View today's skill logs
-tail -f ai_employee_vault/Logs/skills_$(date +%Y-%m-%d).log
-
-# View all logs
-ls -la ai_employee_vault/Logs/
-```
-
-### Check Dashboard Status
-
-```bash
-cat ai_employee_vault/Dashboard.md
-```
-
-## Troubleshooting
-
-### Skill Returns Error
-
-1. Check the log file for details
-2. Verify vault_path is correct
-3. Ensure required directories exist
-4. Check file permissions
-
-### File Not Moving
-
-1. Check if file is locked by another process
-2. Verify destination directory exists
-3. Check disk space
-4. Review log files for errors
-
-### Dashboard Not Updating
-
-1. Verify vault_path is correct
-2. Check Dashboard.md file permissions
-3. Review skill logs for errors
-4. Ensure skill completed successfully
-
-## Bronze Tier Requirements Checklist
-
-- ✅ Obsidian vault with Dashboard.md and Company_Handbook.md
-- ✅ One working Watcher script (file system monitoring)
-- ✅ Claude Code reading from and writing to vault
-- ✅ Basic folder structure (/Inbox, /Needs_Action, /Done)
-- ✅ **All AI functionality implemented as Agent Skills**
-
-## Next Steps
-
-1. Test all skills individually
-2. Test complete workflow
-3. Review logs for any issues
-4. Document any custom workflows
-5. Prepare for Silver Tier (MCP servers integration)
-
-## Documentation
-
-- Full documentation: `AGENT_SKILLS_DOCUMENTATION.md`
-- Implementation summary: `IMPLEMENTATION_SUMMARY.md`
-- Testing guide: `TESTING.md`
-- Project structure: `PROJECT_STRUCTURE.md`
+See `AGENT_SKILLS_DOCUMENTATION.md` for complete schema reference.

@@ -1,146 +1,222 @@
-# Bronze Tier - Quick Reference Guide
+# Personal AI Employee — Quick Reference
 
-**Version:** 1.0 | **Last Updated:** 2026-03-28
+**Version:** 3.0-gold | **Last Updated:** 2026-04-25
 
 ---
 
-## Quick Start
+## System Control
 
 ```bash
-# Setup (first time only)
-./setup.sh
-
-# Start system
-./start.sh
-
-# Stop system
-./stop.sh
+./start.sh                          # Start everything
+./stop.sh                           # Stop everything
+python scripts/health_check.py      # API health + dashboard update
+ps aux | grep -E "watchdog|orchestrator|watcher"  # Check running
 ```
+
+---
+
+## Vault Folders
+
+| Folder | Purpose |
+|--------|---------|
+| **Inbox** | Drop tasks here |
+| **Needs_Action** | Active processing queue |
+| **Pending_Approval** | HITL gate — review here |
+| **Approved** | Move here to authorize execution |
+| **Rejected** | Rejected actions |
+| **Done** | Completed tasks + executed actions |
+| **Plans** | Strategic plans |
+| **Briefings** | CEO Weekly Briefings (auto Mon 7 AM) |
+| **Content_Calendar** | Cross-platform scheduled posts |
+| **Logs** | Orchestrator + audit JSON |
 
 ---
 
 ## Common Commands
 
-### System Management
+### Email
 ```bash
-# Check if system is running
-ps aux | grep -E "watchdog|orchestrator"
+# View unprocessed emails
+ls ai_employee_vault/Needs_Action/EMAIL_*.md
 
-# View live logs
-tail -f ai_employee_vault/Logs/orchestrator_$(date +%Y-%m-%d).log
+# Run MCP processor manually
+python src/orchestrator/mcp_processor.py ./ai_employee_vault
 
-# Restart system
-./stop.sh && sleep 2 && ./start.sh
+# View MCP processor logs
+tail -f ai_employee_vault/Logs/mcp_processor_$(date +%Y-%m-%d).log
 ```
 
-### Task Management
+### Social Media
 ```bash
-# Create a task
-cp my_task.md ai_employee_vault/Inbox/
+# Generate cross-platform content calendar (LI + TW + FB + IG)
+python src/orchestrator/skills/create_content_plan.py
 
-# Check processing status
-ls -la ai_employee_vault/Inbox/
-ls -la ai_employee_vault/Done/
+# View scheduled posts
+ls ai_employee_vault/Content_Calendar/
 
-# View Dashboard
+# Poll Twitter mentions manually
+python src/watchers/twitter_watcher.py ./ai_employee_vault
+
+# Poll FB/IG comments manually
+python src/watchers/meta_watcher.py ./ai_employee_vault
+```
+
+### Odoo ERP
+```bash
+# Start Odoo Docker stack
+cd docker && docker-compose up -d
+
+# Stop Odoo
+cd docker && docker-compose down
+
+# Odoo UI (browser)
+# http://localhost:8069 — admin / admin
+```
+
+### CEO Briefing
+```bash
+# Generate briefing manually (writes to Briefings/)
+python src/orchestrator/skills/generate_ceo_briefing.py ./ai_employee_vault
+
+# View latest briefing
+ls -t ai_employee_vault/Briefings/ | head -1 | xargs -I{} cat ai_employee_vault/Briefings/{}
+```
+
+### Audit Log
+```bash
+# View last 20 audit entries
+cat ai_employee_vault/Logs/audit_master.json | python -m json.tool | tail -80
+
+# Count actions by platform
+grep -o '"platform": "[^"]*"' ai_employee_vault/Logs/audit_master.json | sort | uniq -c
+```
+
+### Logs
+```bash
+tail -f ai_employee_vault/Logs/orchestrator_$(date +%Y-%m-%d).log
+tail -f ai_employee_vault/Logs/gmail_watcher_$(date +%Y-%m-%d).log
+tail -f ai_employee_vault/Logs/watcher_manager_$(date +%Y-%m-%d).log
 cat ai_employee_vault/Dashboard.md
 ```
 
-### Obsidian
+---
+
+## HITL Approval Flow
+
+```
+Skill creates approval request → Pending_Approval/
+Review + edit if needed
+Move to Approved/ → orchestrator executes
+Result archived to Done/
+```
+
 ```bash
-# Open vault
-obsidian ai_employee_vault/
+# Approve a pending item
+mv ai_employee_vault/Pending_Approval/ITEM_*.md ai_employee_vault/Approved/
 
-# Or manually: Open Obsidian → Open folder as vault → Select ai_employee_vault
+# Reject
+mv ai_employee_vault/Pending_Approval/ITEM_*.md ai_employee_vault/Rejected/
 ```
 
 ---
 
-## Task Template
+## Social Posting (Manual)
 
-```markdown
-# Task: [Task Name]
+```bash
+# LinkedIn
+python -m src.orchestrator.skills.post_linkedin '{"action": "create_post", "content": "Your post text"}'
 
-## Task Type
-[Information Request / Action / Report / etc.]
+# Twitter/X
+python -m src.orchestrator.skills.post_twitter '{"action": "create_post", "content": "Your tweet text"}'
 
-## Priority
-[High / Medium / Low]
+# Facebook
+python -m src.orchestrator.skills.post_facebook '{"action": "create_post", "content": "Your post text"}'
 
-## Description
-[What needs to be done]
+# Instagram (needs public image URL)
+python -m src.orchestrator.skills.post_instagram '{"action": "create_post", "caption": "Caption", "image_url": "https://..."}'
+```
 
-## Expected Output
-[What you expect as result]
-
-## Notes
-[Additional context]
+All generate approval request in `Pending_Approval/` — move to `Approved/` to publish.
 
 ---
-*Created: YYYY-MM-DD*
-*Status: Pending*
+
+## Watcher Manager
+
+```bash
+python src/orchestrator/watcher_manager.py ./ai_employee_vault start
+python src/orchestrator/watcher_manager.py ./ai_employee_vault stop
+python src/orchestrator/watcher_manager.py ./ai_employee_vault status
 ```
 
 ---
 
-## Folder Structure
+## Autonomous Mode (Ralph Wiggum)
 
-| Folder | Purpose |
-|--------|---------|
-| **Inbox** | Drop new tasks here |
-| **Needs_Action** | Tasks requiring processing |
-| **Done** | Completed tasks and outputs |
-| **Plans** | Strategic plans |
-| **Pending_Approval** | Awaiting human approval |
-| **Approved** | Approved for execution |
-| **Rejected** | Rejected tasks |
-| **Logs** | System activity logs |
+```bash
+./scripts/start_ralph_wiggum.sh     # Start autonomous processing
+# Keeps Claude running while Needs_Action/ has pending items
+# MAX_ITERATIONS controlled in .env
+```
 
 ---
 
-## Workflow
+## Credential Setup
 
-1. **Create task** → Drop `.md` file in Inbox
-2. **Wait ~30 seconds** → System detects and processes
-3. **Check results** → Look in Done folder
-4. **Review activity** → Check Dashboard.md
+```bash
+python scripts/setup_linkedin_api.py    # LinkedIn OAuth
+python scripts/setup_meta_api.py        # Facebook + Instagram
+# Twitter: set keys in .env directly (no setup script needed)
+# Odoo: credentials in .env + docker/.env
+```
+
+---
+
+## Scheduling
+
+```bash
+./scripts/setup_cron.sh     # Install all cron jobs
+crontab -l                  # View active jobs
+# Cron schedule:
+# */30 * * * *  orchestrator check
+# 0 7 * * 1    CEO Weekly Briefing (Monday 7 AM)
+```
 
 ---
 
 ## Troubleshooting
 
-### System not processing files?
+### Files stuck in Inbox
 ```bash
-# Check if running
-ps aux | grep orchestrator
-
-# Check logs for errors
-tail -20 ai_employee_vault/Logs/orchestrator_$(date +%Y-%m-%d).log
-
-# Restart system
-./stop.sh && ./start.sh
-```
-
-### Files stuck in Inbox?
-```bash
-# Check processing lock
-ls -la ai_employee_vault/.state/processing.lock
-
-# Remove if stuck
 rm ai_employee_vault/.state/processing.lock
-
-# Restart
 ./stop.sh && ./start.sh
 ```
 
-### Claude Code errors?
+### Gmail MCP auth failure
 ```bash
-# Test Claude manually
-cd ai_employee_vault
-claude "Read Dashboard.md"
+python scripts/health_check.py
+# If failed: re-authorize via Claude Code MCP session
+```
 
-# Check Claude version
-claude --version
+### LinkedIn token expired
+```bash
+python scripts/setup_linkedin_api.py
+```
+
+### Meta token expired
+```bash
+python scripts/setup_meta_api.py
+```
+
+### Odoo connection failed
+```bash
+cd docker && docker-compose ps
+cd docker && docker-compose up -d
+```
+
+### Orphan processes
+```bash
+pkill -f "mcp_processor|gmail_watcher|watcher_manager"
+./start.sh
 ```
 
 ---
@@ -149,102 +225,14 @@ claude --version
 
 | File | Purpose |
 |------|---------|
-| `Dashboard.md` | System status and activity |
+| `Dashboard.md` | Live system status |
 | `Company_Handbook.md` | Rules and guidelines |
-| `README.md` | Vault usage guide |
-| `.claude_instruction.md` | Temporary instruction files |
+| `.mcp.json` | MCP server config (Gmail + filesystem + Odoo) |
+| `.env` | All API credentials |
+| `credentials/linkedin_api_token.json` | LinkedIn OAuth token |
+| `credentials/meta_api_token.json` | Facebook + Instagram token |
+| `Logs/audit_master.json` | Consolidated audit trail |
 
 ---
 
-## Configuration
-
-### Change check interval
-Edit `src/orchestrator/orchestrator.py`:
-```python
-check_interval = 30  # Change to desired seconds
-```
-
-### Modify rules
-Edit `ai_employee_vault/Company_Handbook.md`
-
-### Adjust timeout
-Edit `src/orchestrator/orchestrator.py`:
-```python
-timeout=300  # Change to desired seconds
-```
-
----
-
-## Monitoring
-
-### Dashboard Metrics
-- System Status (🟢 Operational / 🔴 Error)
-- Pending Actions count
-- Recent Activity log
-- Statistics (processed, queued, failed)
-
-### Log Files
-- `orchestrator_YYYY-MM-DD.log` - Processing logs
-- `watchdog_YYYY-MM-DD.log` - System health logs
-- `activity_YYYY-MM-DD.md` - Human-readable activity
-
----
-
-## Best Practices
-
-✅ **Do:**
-- Use descriptive task names
-- Include clear expected outputs
-- Review Dashboard regularly
-- Archive old logs monthly
-- Backup vault weekly
-
-❌ **Don't:**
-- Drop non-.md files in Inbox
-- Modify files while processing
-- Store sensitive data in vault
-- Run multiple instances
-- Delete .state directory
-
----
-
-## Performance
-
-| Metric | Typical Value |
-|--------|---------------|
-| Detection latency | < 30 seconds |
-| Simple task | 10-30 seconds |
-| Complex task | 30-120 seconds |
-| Memory usage | ~50-200 MB |
-| CPU usage | < 30% |
-
----
-
-## Support
-
-📖 **Full Documentation:** `BRONZE_TIER_DOCS.md`
-🐛 **Issues:** Check logs first, then GitHub issues
-💡 **Tips:** See README.md in vault
-
----
-
-## Quick Checks
-
-```bash
-# Is system healthy?
-ps aux | grep -E "watchdog|orchestrator" | wc -l
-# Should return 2 or more
-
-# Any files waiting?
-ls ai_employee_vault/Inbox/ | wc -l
-
-# Recent activity?
-tail -5 ai_employee_vault/Logs/orchestrator_$(date +%Y-%m-%d).log
-
-# System uptime?
-ps -p $(pgrep -f watchdog.py) -o etime=
-```
-
----
-
-**Bronze Tier v1.0** | Production Ready | 2026-03-28
+**Gold Tier v3.0** | Production Ready | 2026-04-25

@@ -847,23 +847,34 @@ mv ai_employee_vault/Logs/*.gz ai_employee_vault/Logs/archive/
 
 ---
 
-## Upgrading to Silver Tier
+## Tier Upgrade Path
 
-The Bronze Tier provides the foundation for Silver Tier features:
+Bronze Tier is the foundation — Silver and Gold add capabilities without changing the core.
 
-### Planned Silver Tier Features
-- Gmail integration (email → Inbox)
-- Calendar sync
-- WhatsApp monitoring
-- Automated email responses
-- Advanced task templates
-- Multi-vault support
+### Silver Tier (Complete)
+- Gmail integration + MCP server
+- LinkedIn API posting + content calendar
+- Multi-watcher system (watcher_manager)
+- Email processing workflow (mark read, archive, reply, delete)
+- Retry logic + edge case handling
+- Cron scheduling
+
+### Gold Tier (Complete)
+- Twitter/X watcher + HITL posting skill
+- Facebook + Instagram via Meta Graph API
+- Cross-platform content calendar (LI/TW/FB/IG)
+- Odoo Community 17 ERP — revenue queries + draft invoices
+- CEO Weekly Briefing with live financials
+- Multiple MCP servers (Gmail + filesystem + Odoo)
+- Ralph Wiggum autonomous stop hook
+- Comprehensive structured audit logging
+- Error recovery hardening + health check
 
 ### Migration Path
-1. Bronze Tier remains fully functional
-2. Silver Tier adds new watchers and integrations
-3. Existing vault structure is preserved
-4. Company_Handbook.md extended with new rules
+1. Bronze Tier remains fully functional at all tiers
+2. Each tier adds new watchers and integrations
+3. Vault structure extended (Briefings/, Content_Calendar/ added in Gold)
+4. Company_Handbook.md extended with new rules at each tier
 
 ---
 
@@ -978,16 +989,32 @@ For detailed skills documentation, see:
 
 ## Changelog
 
-### Version 1.0 (2026-03-28)
-- Initial Bronze Tier release
+### Version 3.0 (2026-04-25) — Gold Tier Complete
+- Twitter/X, Facebook, Instagram integration
+- Odoo ERP accounting skill + MCP server
+- CEO Weekly Briefing with live financial data
+- Cross-platform content calendar
+- Multiple MCP servers (Gmail + filesystem + Odoo)
+- Comprehensive audit logging (audit_master.json)
+- Ralph Wiggum autonomous stop hook
+- Error recovery hardening + health check utility
+
+### Version 2.0 (2026-04-11) — Silver Tier Complete
+- Gmail integration + MCP server
+- LinkedIn API posting + content calendar
+- Multi-watcher management system
+- Email processing workflow
+- Retry logic + edge case handling
+- Cron scheduling
+
+### Version 1.0 (2026-03-28) — Bronze Tier
+- Initial release
 - Automated file processing
 - Claude Code integration
 - Obsidian vault support
 - Dashboard and logging
 - Human-in-the-loop approval workflow
-- Complete setup automation
-- **Agent Skills framework** (7 modular skills)
-- **Complete Bronze Tier requirements compliance**
+- Agent Skills framework (7 modular skills)
 
 ---
 

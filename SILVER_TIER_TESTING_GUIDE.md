@@ -1,8 +1,8 @@
-# Silver Tier Testing Guide
+# Silver + Gold Tier Testing Guide
 
-**Date**: 2026-04-11
-**Status**: Ready for Testing (LinkedIn API Auth Validated)
-**Branch**: silver-imp
+**Date**: 2026-04-25
+**Status**: Silver ✅ Complete | Gold ✅ Complete
+**Branch**: gold-imp
 
 ---
 
@@ -583,18 +583,131 @@ Silver Tier testing is successful when:
 
 ---
 
-## 🚀 Next Steps After Testing
+---
 
-Once all tests pass:
+## Gold Tier Tests
 
-1. Update README.md to reflect Silver Tier completion
-2. Create release notes
-3. Tag the release: `git tag v2.0-silver-tier`
-4. Push to remote: `git push origin silver-imp --tags`
-5. Consider merging to main branch
-6. Begin Gold Tier planning
+### Test G1: Twitter/X Watcher
+
+```bash
+python src/watchers/twitter_watcher.py ./ai_employee_vault
+# Expected: polls mentions, creates TWITTER_MENTION_*.md in Needs_Action (if mentions exist)
+ls ai_employee_vault/Needs_Action/TWITTER_MENTION_*.md
+```
+
+### Test G2: Twitter Post (HITL)
+
+```bash
+python -m src.orchestrator.skills.post_twitter '{"action": "create_post", "content": "Gold Tier test post"}'
+ls ai_employee_vault/Pending_Approval/TWITTER_POST_*.md
+mv ai_employee_vault/Pending_Approval/TWITTER_POST_*.md ai_employee_vault/Approved/
+# Note: free API tier returns 402 — code path is correct, posting blocked by tier
+```
+
+### Test G3: Facebook Post (HITL)
+
+```bash
+python -m src.orchestrator.skills.post_facebook '{"action": "create_post", "content": "Gold Tier FB test"}'
+ls ai_employee_vault/Pending_Approval/FACEBOOK_POST_*.md
+mv ai_employee_vault/Pending_Approval/FACEBOOK_POST_*.md ai_employee_vault/Approved/
+# Check logs for post_id confirmation
+```
+
+### Test G4: Instagram Post (HITL)
+
+```bash
+python -m src.orchestrator.skills.post_instagram '{
+  "action": "create_post",
+  "caption": "Gold Tier IG test",
+  "image_url": "https://example.com/public-image.jpg"
+}'
+ls ai_employee_vault/Pending_Approval/INSTAGRAM_POST_*.md
+```
+
+**Expected**: approval file created, post_id returned after approval execution.
+
+### Test G5: Cross-Platform Content Calendar
+
+```bash
+python src/orchestrator/skills/create_content_plan.py
+ls ai_employee_vault/Content_Calendar/
+# Expected: JSON plan + per-platform MD files for LI/TW/FB/IG
+```
+
+### Test G6: Odoo Revenue Query
+
+```bash
+python -c "
+import sys; sys.path.insert(0, '.')
+from src.orchestrator.skills.odoo_accounting import OdooAccountingSkill
+skill = OdooAccountingSkill('./ai_employee_vault')
+r = skill.get_revenue_summary('2026-04-01', '2026-04-30')
+print(r)
+"
+# Expected: dict with total_revenue, invoice_count
+```
+
+### Test G7: Odoo Draft Invoice (HITL)
+
+```bash
+python -c "
+import sys; sys.path.insert(0, '.')
+from src.orchestrator.skills.odoo_accounting import OdooAccountingSkill
+skill = OdooAccountingSkill('./ai_employee_vault')
+r = skill.create_draft_invoice(partner_id=7, lines=[{'name': 'Test Service', 'price_unit': 100.0, 'quantity': 1}])
+print(r)
+"
+# Expected: approval file in Pending_Approval/
+ls ai_employee_vault/Pending_Approval/ODOO_INVOICE_*.md
+```
+
+### Test G8: CEO Weekly Briefing
+
+```bash
+python src/orchestrator/skills/generate_ceo_briefing.py ./ai_employee_vault
+ls ai_employee_vault/Briefings/
+cat $(ls -t ai_employee_vault/Briefings/*.md | head -1)
+# Expected: sections for Email Activity, Social Activity, Odoo Financials, Anomalies
+```
+
+### Test G9: Audit Logger
+
+```bash
+# After any social post or email action, check audit log
+cat ai_employee_vault/Logs/audit_master.json | python -m json.tool | tail -40
+# Expected: structured JSON entries with platform, action, status, timestamp
+```
+
+### Test G10: Health Check
+
+```bash
+python scripts/health_check.py
+# Expected: Gmail MCP status, LinkedIn API status, updates Dashboard.md health table
+```
+
+### Test G11: Error Recovery (Gmail MCP Queue)
+
+```bash
+# Disable network temporarily then attempt MCP action
+# Expected: action renamed to QUEUED_MCP_GMAIL_*.json in Needs_Action
+# Re-enable network → next orchestrator cycle retries queued actions
+```
 
 ---
 
-**Testing Status**: Ready for execution
-**Last Updated**: 2026-04-02
+## Gold Tier Success Criteria
+
+- [ ] Twitter watcher polls without errors
+- [ ] Facebook post publishes live (post_id returned)
+- [ ] Instagram post publishes live (post_id returned)
+- [ ] Content calendar generates per-platform files
+- [ ] Odoo revenue query returns invoice data
+- [ ] Draft invoice creates HITL approval file
+- [ ] CEO briefing includes Odoo financial section
+- [ ] Audit master.json has entries for all external actions
+- [ ] Health check updates Dashboard health table
+- [ ] Failed Gmail MCP actions queue for retry
+
+---
+
+**Last Updated**: 2026-04-25
