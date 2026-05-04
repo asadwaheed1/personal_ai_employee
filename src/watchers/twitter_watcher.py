@@ -49,6 +49,13 @@ class TwitterWatcher(BaseWatcher):
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
         self.state_file.write_text(json.dumps(state, indent=2))
 
+    def check_for_updates(self):
+        return []  # Custom run() loop handles updates via _check_mentions()
+
+    def create_action_file(self, item):
+        self._create_action_file(item)
+        return Path(self.vault_path) / 'Needs_Action' / f"TWITTER_MENTION_{item.get('id')}.md"
+
     def run(self):
         """Main watcher loop"""
         print(f"Twitter Watcher started (interval: {self.check_interval}s)")

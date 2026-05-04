@@ -40,6 +40,15 @@ class MetaWatcher(BaseWatcher):
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
         self.state_file.write_text(json.dumps(state, indent=2))
 
+    def check_for_updates(self):
+        return []  # Custom run() loop handles updates via _check_activity()
+
+    def create_action_file(self, item):
+        platform = item.get('platform', 'unknown')
+        self._create_action_file(platform, item.get('parent', {}), item.get('comment', {}))
+        comment_id = item.get('comment', {}).get('id', 'unknown')
+        return Path(self.vault_path) / 'Needs_Action' / f"META_COMMENT_{platform.upper()}_{comment_id}.md"
+
     def run(self):
         print(f"Meta Watcher started (interval: {self.check_interval}s)")
         while True:

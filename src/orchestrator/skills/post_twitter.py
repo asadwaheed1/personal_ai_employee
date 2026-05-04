@@ -62,7 +62,7 @@ class PostTwitterSkill(BaseSkill):
             raise ValueError(f"Tweet content exceeds 280 character limit ({len(content)} chars)")
 
         # Check if approval is required (default True for social)
-        requires_approval = params.get('requires_approval', True)
+        requires_approval = params.get('requires_approval', params.get('require_approval', True))
 
         if requires_approval:
             return self._create_approval_request(content, media_path, scheduled_for)

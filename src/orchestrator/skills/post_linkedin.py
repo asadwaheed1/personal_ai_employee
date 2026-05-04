@@ -85,7 +85,7 @@ class PostLinkedInSkill(BaseSkill):
             raise ValueError("LinkedIn post content exceeds 3000 character limit")
 
         # Check if approval is required (always required for LinkedIn posts)
-        requires_approval = params.get('requires_approval', True)
+        requires_approval = params.get('requires_approval', params.get('require_approval', True))
 
         if requires_approval:
             return self._create_approval_request(content, image_path, scheduled_for)

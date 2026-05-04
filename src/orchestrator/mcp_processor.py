@@ -197,27 +197,71 @@ class MCPProcessor:
 
     def _execute_gmail_action(self, tool: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Execute Gmail MCP actions via Claude Code's Gmail MCP server
-
-        Args:
-            tool: The Gmail tool to execute (send_email, modify_email, trash_email, etc.)
-            params: Parameters for the tool
-
-        Returns:
-            Dictionary with execution result
+        Execute Gmail MCP actions via Claude Code's Gmail MCP server.
+        Falls back to direct Gmail API when MCP tool is unavailable in session.
         """
         try:
-            # Create a temporary Claude instruction file to execute the Gmail action
             instruction = self._create_gmail_instruction(tool, params)
-
-            # Execute via Claude Code with MCP server
             result = self._execute_claude_with_mcp(instruction, 'gmail')
+
+            if not result.get('success') and result.get('mcp_unavailable'):
+                self.logger.warning(f"Gmail MCP unavailable for {tool}, trying direct API fallback")
+                direct = self._execute_gmail_action_direct(tool, params)
+                if direct.get('success'):
+                    self.logger.info(f"Gmail direct API fallback succeeded for {tool}")
+                else:
+                    self.logger.error(f"Gmail direct API fallback also failed for {tool}: {direct.get('error')}")
+                return direct
 
             return result
 
         except Exception as e:
             self.logger.error(f"Gmail action execution failed: {e}", exc_info=True)
             return {'success': False, 'error': f'Gmail execution error: {str(e)}'}
+
+    def _execute_gmail_action_direct(self, tool: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Direct Gmail API fallback using google-api-python-client (no MCP)."""
+        try:
+            from google.oauth2.credentials import Credentials
+            from googleapiclient.discovery import build
+            import os
+
+            project_root = self.vault_path.parent
+            token_path = os.getenv('GMAIL_TOKEN_PATH', './credentials/gmail_token.json')
+            token_file = Path(token_path) if os.path.isabs(token_path) else project_root / token_path
+
+            if not token_file.exists():
+                return {'success': False, 'error': f'Gmail token not found at {token_file}'}
+
+            creds = Credentials.from_authorized_user_file(str(token_file))
+            service = build('gmail', 'v1', credentials=creds)
+            message_id = params.get('messageId', params.get('message_id', ''))
+
+            if not message_id:
+                return {'success': False, 'error': 'No messageId in params for direct API call'}
+
+            if tool == 'modify_email':
+                remove_labels = params.get('removeLabelIds', params.get('removeLabels', []))
+                add_labels = params.get('addLabelIds', params.get('addLabels', []))
+                service.users().messages().modify(
+                    userId='me', id=message_id,
+                    body={'removeLabelIds': remove_labels, 'addLabelIds': add_labels}
+                ).execute()
+                action = 'archived' if 'INBOX' in remove_labels else ('marked read' if 'UNREAD' in remove_labels else 'labels modified')
+                return {'success': True, 'output': f'Message {message_id} {action} via direct API'}
+
+            elif tool == 'trash_email':
+                service.users().messages().trash(userId='me', id=message_id).execute()
+                return {'success': True, 'output': f'Message {message_id} trashed via direct API'}
+
+            elif tool == 'send_email':
+                return {'success': False, 'error': 'send_email direct fallback not implemented — use MCP'}
+
+            return {'success': False, 'error': f'Tool {tool} not supported in direct API fallback'}
+
+        except Exception as e:
+            self.logger.error(f"Gmail direct API fallback error: {e}", exc_info=True)
+            return {'success': False, 'error': f'Gmail direct API error: {str(e)}'}
 
     def _execute_linkedin_action(self, tool: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -277,17 +321,13 @@ Return the result of the operation.
             message_id = params.get('messageId', params.get('message_id', 'Not specified'))
             remove_labels = params.get('removeLabelIds', params.get('removeLabels', []))
             add_labels = params.get('addLabelIds', params.get('addLabels', []))
-            return f"""
-Please execute Gmail label modification using the gmail_modify_labels MCP tool.
-
-Required parameters:
-- messageId: {message_id}
-- removeLabels: {remove_labels}
-- addLabels: {add_labels}
-
-Use the gmail_modify_labels tool from the Gmail MCP server to modify message labels.
-Return the operation result.
-"""
+            is_archive = 'INBOX' in remove_labels
+            is_mark_read = 'UNREAD' in remove_labels
+            if is_archive:
+                return f"""Archive Gmail message {message_id} using the gmail_modify_labels MCP tool with messageId="{message_id}", removeLabels=["INBOX"], addLabels=[]. Confirm when done."""
+            if is_mark_read:
+                return f"""Mark Gmail message {message_id} as read using the gmail_mark_read MCP tool with messageId="{message_id}". Confirm when done."""
+            return f"""Modify Gmail message {message_id} labels using gmail_modify_labels MCP tool with messageId="{message_id}", removeLabels={remove_labels}, addLabels={add_labels}. Confirm when done."""
         elif tool == 'trash_email':
             return f"""
 Please execute a Gmail trash_email action using the MCP server.
@@ -394,35 +434,22 @@ Confirm the operation completed successfully."""
             Dictionary with execution result
         """
         try:
-            # Create a temporary instruction file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as temp_file:
-                temp_file.write(f"""# MCP Action Execution
-
-**Generated**: {datetime.now().isoformat()}
-**MCP Server**: {mcp_server}
-**Action**: {instruction}
-
-## Task
-{instruction}
-
-## Expected Result
-Execute the specified MCP action and return the result.
-""")
-                temp_file_path = temp_file.name
-
             try:
-                # Execute Claude Code with the instruction
-                # Using --dangerously-skip-permissions to allow MCP server access
-                # Run from project root (not vault) so .claude/config.json and .mcp.json are accessible
                 project_root = self.vault_path.parent
+                mcp_config_path = project_root / '.mcp.json'
+                cmd = ['claude', '--dangerously-skip-permissions']
+                if mcp_config_path.exists():
+                    cmd += ['--mcp-config', str(mcp_config_path), '--strict-mcp-config']
+                cmd += ['-p', instruction]
                 process = subprocess.Popen(
-                    ['claude', '--dangerously-skip-permissions', f'Please execute the instruction in {temp_file_path}'],
+                    cmd,
                     cwd=str(project_root),
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
                     start_new_session=True
                 )
+                temp_file_path = None
 
                 try:
                     stdout, stderr = process.communicate(timeout=300)
@@ -475,12 +502,20 @@ Execute the specified MCP action and return the result.
                             'token refresh work',
                             # Gmail plain-text responses
                             'marked as read',
+                            'marked read',
+                            'message marked',
                             'label removed',
                             'reply sent',
                             'draft created',
                             'mcp action marked complete',
                             'has been marked',
                             'been archived',
+                            'archived',
+                            'removed from inbox',
+                            'inbox label removed',
+                            'unread label removed',
+                            'done.',
+                            'done!',
                             # Filesystem plain-text responses
                             'file written',
                             'file created',
@@ -502,7 +537,23 @@ Execute the specified MCP action and return the result.
                         ]
                         has_success_signal = any(signal in output_lower for signal in success_signals)
 
-                        failure_signals = [
+                        # Hard failures: MCP tool not loaded — override everything
+                        hard_failure_signals = [
+                            "isn't available",
+                            'not available',
+                            'not loaded',
+                            'no gmail mcp',
+                            'no mcp server',
+                            'mcp server is configured',
+                            'claude mcp list',
+                            'not configured',
+                            'tool not found',
+                            'no mcp loaded',
+                        ]
+                        is_hard_mcp_failure = any(s in output_lower for s in hard_failure_signals)
+
+                        # Soft failures: overridden by clear success signal
+                        soft_failure_signals = [
                             'action failed',
                             'could not',
                             'token failed',
@@ -510,24 +561,24 @@ Execute the specified MCP action and return the result.
                             'not executed',
                             'gmail mcp tool',
                             'gmail mcp server',
-                            "isn't available",
-                            'not available',
                             'request to https://oauth2.googleapis.com/token failed',
-                            'error:'
+                            "i'm blocked",
                         ]
-                        has_failure_signal = any(signal in output_lower for signal in failure_signals)
+                        has_soft_failure = any(s in output_lower for s in soft_failure_signals)
+                        # 'error:' only counts as failure when no success signal present
+                        has_bare_error = 'error:' in output_lower and not has_success_signal
 
-                        # Explicit: fail if missing JSON AND mentioned missing MCP tool/server
-                        if has_failure_signal or 'no gmail mcp' in output_lower:
-                            self.logger.error(f"MCP action reported explicit failure via {mcp_server}")
+                        # Priority: hard failure > success > soft failure > ambiguous
+                        if is_hard_mcp_failure:
+                            self.logger.error(f"MCP tool unavailable via {mcp_server}: {output[:200]}")
                             return {
                                 'success': False,
                                 'error': output[:500],
                                 'output': output[:500],
-                                'returncode': process.returncode
+                                'returncode': process.returncode,
+                                'mcp_unavailable': True,
                             }
 
-                        # Accept plain-text success if clear success indicators present
                         if has_success_signal:
                             self.logger.info(f"MCP action executed successfully via {mcp_server} [plain-text success]")
                             return {
@@ -536,7 +587,16 @@ Execute the specified MCP action and return the result.
                                 'returncode': process.returncode
                             }
 
-                        self.logger.error(f"MCP action did not return recognizable JSON or success signal, treated as failure")
+                        if has_soft_failure or has_bare_error:
+                            self.logger.error(f"MCP action reported failure via {mcp_server}")
+                            return {
+                                'success': False,
+                                'error': output[:500],
+                                'output': output[:500],
+                                'returncode': process.returncode
+                            }
+
+                        self.logger.error(f"MCP action returned ambiguous output, treated as failure")
                         return {
                             'success': False,
                             'error': output[:500],
@@ -553,8 +613,7 @@ Execute the specified MCP action and return the result.
                 }
 
             finally:
-                # Clean up temporary file
-                if Path(temp_file_path).exists():
+                if temp_file_path and Path(temp_file_path).exists():
                     Path(temp_file_path).unlink()
 
         except subprocess.TimeoutExpired:

@@ -20,7 +20,7 @@ class ContentCalendarWatcher(BaseWatcher):
 
     def __init__(self, vault_path: str, check_interval: int = 3600):
         super().__init__(vault_path, check_interval)
-        self.platforms = ['LINKEDIN', 'TWITTER', 'FACEBOOK', 'INSTAGRAM']
+        self.platforms = ['LINKEDIN', 'FACEBOOK', 'INSTAGRAM']
         self.logger.info(f'Content Calendar watcher initialized for platforms: {self.platforms}')
 
     def check_for_updates(self) -> List[Dict[str, Any]]:

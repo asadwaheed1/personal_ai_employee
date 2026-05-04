@@ -57,7 +57,7 @@ class PostFacebookSkill(BaseSkill):
             raise ValueError("Post content is required")
 
         # Check if approval is required
-        requires_approval = params.get('requires_approval', True)
+        requires_approval = params.get('requires_approval', params.get('require_approval', True))
 
         if requires_approval:
             return self._create_approval_request(content, link, scheduled_for)
@@ -223,24 +223,37 @@ created: {datetime.now().isoformat()}
         link = params.get('link')
         return self._post_to_facebook(content, link)
 
+    def _get_page_token(self, client, page_id: str) -> Optional[str]:
+        """Get page access token: saved credentials first, live API fallback."""
+        token_file = Path(__file__).parent.parent.parent.parent / 'credentials' / 'meta_api_token.json'
+        if token_file.exists():
+            try:
+                data = json.loads(token_file.read_text())
+                if str(data.get('page_id')) == str(page_id) and data.get('page_access_token'):
+                    return data['page_access_token']
+            except Exception:
+                pass
+        # Fallback: fetch from API
+        try:
+            pages = client.get_pages()
+            for page in pages:
+                if str(page.get('id')) == str(page_id):
+                    return page.get('access_token')
+        except Exception:
+            pass
+        return None
+
     def _post_to_facebook(self, content: str, link: Optional[str]) -> Dict[str, Any]:
         """Actually post to Facebook using the API"""
         try:
             client = self._get_meta_client()
             page_id = os.getenv('META_PAGE_ID')
-            
+
             if not page_id:
                 raise ValueError("META_PAGE_ID not configured in .env")
 
-            # Get Page Access Token from the user token
-            # In a real app, you'd fetch the specific page token from get_pages()
-            pages = client.get_pages()
-            page_token = None
-            for page in pages:
-                if page['id'] == page_id:
-                    page_token = page['access_token']
-                    break
-            
+            page_token = self._get_page_token(client, page_id)
+
             if not page_token:
                 raise ValueError(f"Could not find access token for Page ID {page_id}. Grant 'pages_manage_posts' permission.")
 

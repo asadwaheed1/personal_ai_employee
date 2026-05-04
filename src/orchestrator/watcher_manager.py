@@ -231,6 +231,25 @@ class WatcherManager:
 
         state_path.write_text(json.dumps(state, indent=2))
 
+    def _update_health_dashboard(self, gmail_healthy: bool, gmail_detail: str):
+        """Write health status to Dashboard after preflight."""
+        try:
+            import sys as _sys
+            _sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'scripts'))
+            from health_check import check_linkedin_api, update_dashboard_health
+            from dotenv import load_dotenv
+            load_dotenv(self.vault_path.parent / '.env')
+            results = {
+                'Gmail MCP': {
+                    'status': 'healthy' if gmail_healthy else 'unhealthy',
+                    'details': gmail_detail,
+                },
+                'LinkedIn API': check_linkedin_api(self.vault_path),
+            }
+            update_dashboard_health(self.vault_path, results)
+        except Exception as e:
+            self.logger.warning(f'Health dashboard update failed: {e}')
+
     def run_startup_preflight(self) -> bool:
         """Run startup preflight checks before entering monitoring loop."""
         self.logger.info('Running startup preflight checks...')
@@ -242,13 +261,16 @@ class WatcherManager:
                 self.logger.error('❌ STARTUP PREFLIGHT FAILED: Gmail MCP authentication check failed')
                 self.logger.error(f'Gmail MCP preflight error: {error_msg}')
                 self.logger.error('Action required: Re-authenticate Gmail MCP before startup (token refresh failing).')
+                self._update_health_dashboard(False, error_msg)
                 return False
 
             self.logger.info('✅ Startup preflight passed: Gmail MCP authentication healthy')
+            self._update_health_dashboard(True, 'Authenticated')
             return True
 
         except Exception as e:
             self.logger.error(f'❌ STARTUP PREFLIGHT FAILED with exception: {e}', exc_info=True)
+            self._update_health_dashboard(False, str(e))
             return False
 
     def run_monitoring_loop(self, check_interval: int = 30):

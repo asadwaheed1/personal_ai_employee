@@ -50,8 +50,8 @@ class AutoProcessEmailsSkill(BaseSkill):
                         'action': 'auto_processed',
                         'reason': classification['reason']
                     })
-                elif classification.get('requires_approval', False):
-                    # Move approval-required emails out of Needs_Action
+                elif classification.get('requires_approval', False) or classification.get('move_to_pending', False):
+                    # Move out of Needs_Action — prevents re-scan every cycle
                     self._move_to_pending_approval(email_file, classification)
                     moved_to_pending_approval_count += 1
                     results.append({
@@ -60,7 +60,6 @@ class AutoProcessEmailsSkill(BaseSkill):
                         'reason': classification['reason']
                     })
                 else:
-                    # Keep non-approval review items in Needs_Action
                     kept_for_review_count += 1
                     results.append({
                         'file': email_file.name,
@@ -103,8 +102,13 @@ class AutoProcessEmailsSkill(BaseSkill):
         subject = metadata.get('subject', '').lower()
         priority = metadata.get('priority', 'normal')
         requires_approval = metadata.get('requires_approval', 'false') == 'true'
+        labels = metadata.get('labels', '').upper()
 
-        # Newsletter/promotional indicators
+        # Gmail category labels — auto-process without hesitation
+        auto_process_labels = ['CATEGORY_PROMOTIONS', 'CATEGORY_UPDATES', 'CATEGORY_SOCIAL', 'CATEGORY_FORUMS']
+        is_gmail_auto_category = any(lbl in labels for lbl in auto_process_labels)
+
+        # Newsletter/promotional indicators (fallback for uncategorized)
         newsletter_patterns = [
             'newsletter', 'unsubscribe', 'promotional', 'marketing',
             'altfins', 'crypto', 'trading', 'cashback', 'offer',
@@ -129,7 +133,7 @@ class AutoProcessEmailsSkill(BaseSkill):
         # Check if high priority or requires approval
         is_high_priority = priority == 'high' or requires_approval
 
-        # Decision logic
+        # Important/approval check always wins
         if is_high_priority or is_important:
             return {
                 'should_auto_process': False,
@@ -137,16 +141,18 @@ class AutoProcessEmailsSkill(BaseSkill):
                 'reason': 'High priority or requires human review'
             }
 
-        if is_newsletter:
+        if is_gmail_auto_category or is_newsletter:
             return {
                 'should_auto_process': True,
-                'reason': 'Newsletter/promotional email'
+                'reason': f'Auto-category label ({labels}) or newsletter pattern matched'
             }
 
-        # Default: keep for review if uncertain
+        # Uncertain: move to Pending_Approval so it stops re-scanning every cycle
         return {
             'should_auto_process': False,
-            'reason': 'Uncertain classification, keeping for review'
+            'requires_approval': False,
+            'move_to_pending': True,
+            'reason': 'Uncertain classification, queued for human review'
         }
 
     def _parse_frontmatter(self, content: str) -> Dict[str, str]:

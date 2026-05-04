@@ -409,7 +409,7 @@ class ProcessEmailActionsSkill(BaseSkill):
             "status": "pending",
             "params": {
                 "messageId": message_id,
-                **{(k[0].upper()+k[1:] if k.endswith('labelIds') else k): v for k, v in tool_params.get(action_type, {}).items()}
+                **tool_params.get(action_type, {})
             },
             "result": None,
             "executed_at": None

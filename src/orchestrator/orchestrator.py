@@ -424,28 +424,30 @@ All files have been processed and moved to appropriate folders.
                 summary=f"Executing {len(files)} approved action(s)"
             )
 
+        _SCHEDULED_POST_TYPES = {
+            'twitter_scheduled_post', 'facebook_scheduled_post',
+            'instagram_scheduled_post', 'linkedin_scheduled_post',
+        }
+
         success_count = 0
         for file_path in files:
             try:
-                # Check if it's an email file
                 content = file_path.read_text()
                 if 'type: email' in content and 'message_id:' in content:
-                    # Execute email actions directly via skill
                     self.logger.info(f'Processing approved email: {file_path.name}')
                     result = self._execute_email_actions(file_path)
+                    if result:
+                        success_count += 1
+                elif any(f'type: {t}' in content for t in _SCHEDULED_POST_TYPES):
+                    self.logger.info(f'Processing approved scheduled post: {file_path.name}')
+                    result = self._execute_approved_via_skill(file_path)
                     if result:
                         success_count += 1
                 else:
                     # For non-email files, use generic Claude processing
                     self.logger.info(f'Processing approved file (non-email): {file_path.name}')
                     context = f'Execute approved action from {file_path.name}. IMPORTANT: If a skill returns "status: retry", do NOT move the file to Done, leave it in Approved/ for retry.'
-                    
-                    # Manual processing check to see if we should skip archiving
-                    # Claude processing is a bit opaque here, but we can check if file was moved
-                    # or add explicit logic if we were calling skills directly.
-                    # Since we use Claude, we trust Claude's instructions which we just updated.
                     if self._trigger_claude_processing(context):
-                        # Verify if file still exists in Approved - if it does, it might be for retry
                         if not file_path.exists():
                             success_count += 1
                         else:
@@ -491,6 +493,35 @@ All files have been processed and moved to appropriate folders.
             self.logger.error(f'Error executing email actions: {e}', exc_info=True)
             return False
 
+    def _execute_approved_via_skill(self, approved_file: Path) -> bool:
+        """Call ProcessApprovedActionsSkill directly for a single approved file."""
+        import sys
+        skill_path = Path(__file__).parent / 'skills' / 'process_approved_actions.py'
+        params = {
+            'vault_path': str(self.vault_path),
+            'files': [str(approved_file)],
+        }
+        try:
+            result = subprocess.run(
+                [sys.executable, str(skill_path), json.dumps(params)],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=str(self.vault_path.parent)
+            )
+            if result.returncode == 0:
+                self.logger.info(f'Approved action executed via skill: {approved_file.name}')
+                return True
+            else:
+                self.logger.error(f'ProcessApprovedActionsSkill failed for {approved_file.name}: {result.stderr[:300]}')
+                return False
+        except subprocess.TimeoutExpired:
+            self.logger.error(f'ProcessApprovedActionsSkill timed out for {approved_file.name}')
+            return False
+        except Exception as e:
+            self.logger.error(f'Error executing approved action {approved_file.name}: {e}', exc_info=True)
+            return False
+
     def _process_inbox(self, files: List[Path]) -> bool:
         """Process files in Inbox folder"""
         if not files:
@@ -520,7 +551,40 @@ All files have been processed and moved to appropriate folders.
             self._sync_from_overflow()
 
             files = self._get_files_to_process()
-...
+
+            total_files = sum(len(f) for f in files.values())
+
+            if total_files == 0:
+                self.logger.debug('No files to process')
+                return False
+
+            self.logger.info(f'Found {total_files} total files to process')
+
+            # Process in priority order: MCP Actions > Approved > Needs_Action > Inbox
+            success = True
+
+            # Silver Tier: Process MCP action files first
+            if files['needs_action_mcp']:
+                success = self._process_mcp_actions(files['needs_action_mcp']) and success
+
+            if files['approved']:
+                success = self._process_approved(files['approved']) and success
+
+            if files['needs_action']:
+                success = self._process_needs_action(files['needs_action']) and success
+
+            if files['inbox']:
+                success = self._process_inbox(files['inbox']) and success
+
+            if success:
+                self.last_processed['processed_count'] = self.last_processed.get('processed_count', 0) + total_files
+                self._save_state()
+
+            return True
+
+        finally:
+            self._release_processing_lock()
+
     def _handle_vault_locked(self):
         """Handle cases where the vault is locked by another process"""
         try:
@@ -574,39 +638,6 @@ All files have been processed and moved to appropriate folders.
                     self.logger.error(f"Failed to sync overflow file {f.name}: {e}")
         except Exception as e:
             self.logger.error(f"Error syncing from overflow: {e}")
-
-            total_files = sum(len(f) for f in files.values())
-
-            if total_files == 0:
-                self.logger.debug('No files to process')
-                return False
-
-            self.logger.info(f'Found {total_files} total files to process')
-
-            # Process in priority order: MCP Actions > Approved > Needs_Action > Inbox
-            success = True
-
-            # Silver Tier: Process MCP action files first
-            if files['needs_action_mcp']:
-                success = self._process_mcp_actions(files['needs_action_mcp']) and success
-
-            if files['approved']:
-                success = self._process_approved(files['approved']) and success
-
-            if files['needs_action']:
-                success = self._process_needs_action(files['needs_action']) and success
-
-            if files['inbox']:
-                success = self._process_inbox(files['inbox']) and success
-
-            if success:
-                self.last_processed['processed_count'] = self.last_processed.get('processed_count', 0) + total_files
-                self._save_state()
-
-            return True
-
-        finally:
-            self._release_processing_lock()
 
     def run_monitoring_loop(self):
         """Main monitoring loop"""

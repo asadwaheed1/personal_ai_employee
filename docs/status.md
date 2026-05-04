@@ -1,9 +1,9 @@
 # Personal AI Employee - Project Status
 
-**Last Updated:** 2026-04-25  
+**Last Updated:** 2026-04-30  
 **Current Branch:** gold-imp  
 **Target Tier:** Gold  
-**Overall Status:** ✅ Gold 100% complete — Odoo accounting + MCP integrated, CEO Briefing pulls live revenue data.
+**Overall Status:** ✅ Gold complete + post-submission hardening active. All platforms posting live. MCP fallback + HITL approval flow fixes applied 2026-04-30.
 
 ---
 
@@ -18,11 +18,91 @@
 | HITL Approval | ✅ Complete | Pending_Approval → Approved/Rejected path |
 | Scheduling | ✅ Complete | Cron installed + scheduled commands smoke-tested |
 | Error recovery hardening | ✅ Complete | Retry logic, validation, overflow queue, health check |
-| Twitter/X Integration | ✅ Complete | Tweepy client, posting skill, mention watcher |
-| Facebook + Instagram | ✅ Complete | Meta API client, FB/IG posting skills, activity watcher |
-| Cross-platform Calendar| ✅ Complete | Unified JSON plan drives LI/TW/FB/IG posting; FB+IG live-tested |
+| Twitter/X Integration | ✅ Complete | Tweepy client, posting skill, mention watcher (disabled from calendar — free API blocked) |
+| Facebook + Instagram | ✅ Complete | Meta API client, FB/IG posting skills, activity watcher — live-tested 2026-04-30 |
+| Cross-platform Calendar| ✅ Complete | Gemini AI generates platform-specific content; LI/FB/IG active, Twitter excluded |
 | Comprehensive Audit | ✅ Complete | Structured JSON logging for all external actions |
-| Documentation | ✅ Updated | Core setup/testing docs aligned to API-first flow |
+| MCP fallback (direct API) | ✅ Complete | Gmail direct API fallback when MCP tool unavailable in session |
+| HITL approval flow | ✅ Fixed | Social posts in Approved/ now parse content + post live correctly |
+| Documentation | ✅ Updated | DEMO.md + status.md aligned to Gold requirements |
+| Image generation pipeline | 🔜 Planned | Gemini Imagen → Imgur → image_url for FB/IG calendar posts |
+
+---
+
+## ✅ Latest Confirmed Outcomes (2026-04-30) — Bug Fixes + Demo Hardening
+
+1. **MCP signal detection fixed** (`mcp_processor.py`):
+   - Root cause: `'error:'` was in `failure_signals` → "Done. Message marked read." classified as failure.
+   - Fix: split into hard failures (MCP not loaded — always fail, set `mcp_unavailable: True`) vs soft failures (overridden by success signal).
+   - Success signals expanded: `'done.'`, `'done!'`, `'marked read'`, `'message marked'` added.
+   - Result: false-failure rate eliminated; success messages no longer misread.
+
+2. **Gmail direct API fallback added** (`mcp_processor.py`):
+   - New `_execute_gmail_action_direct()` — uses `google-api-python-client` + existing `gmail_token.json`, no MCP subprocess.
+   - Supports: `modify_email` (archive, mark_read), `trash_email`.
+   - Triggered automatically when MCP returns `mcp_unavailable: True`.
+   - Eliminates "gmail_mark_read tool not available" permanent failures.
+
+3. **Social post Approved folder flow fixed** (`process_approved_actions.py`):
+   - Root cause: `_execute_skill()` looked for JSON sidecar `Approved/{id}.json` — never exists for social posts. Fell back to `{'action': 'execute_approved'}` with no content → silent fail.
+   - Fix: new `_execute_social_post()` parses content from approval `.md` directly (`_parse_md_code_block`, `_parse_md_bold_field`) and calls skill class directly (no subprocess).
+   - All 4 platforms fixed: Facebook, Instagram, LinkedIn, Twitter.
+
+4. **`require_approval` key mismatch fixed** (all 4 social skills):
+   - Skills checked `requires_approval` (with s); callers passed `require_approval` (no s).
+   - Fix: `params.get('requires_approval', params.get('require_approval', True))` in all 4 skills.
+
+5. **Facebook page token fixed** (`post_facebook.py`, `post_instagram.py`):
+   - Root cause: `get_pages()` API call failing → "Could not find access token" error.
+   - Fix: read `page_access_token` from `credentials/meta_api_token.json` first; API call only as fallback.
+
+6. **Live posting re-confirmed (2026-04-30)**:
+   - Facebook ✅ `698457253346943_122171996522861671`
+   - Instagram ✅ `18114009202742765`
+
+7. **DEMO.md created**: Gold-tier-only demo guide with exact commands, mapped to each requirement.
+
+---
+
+## 🔜 Next Steps
+
+### Image Generation Pipeline (Gemini Imagen)
+
+**Gap identified:** `create_content_plan.py` generates `image_prompt` (text) via Gemini but no step converts it to an actual image URL. `post_instagram.py` and `post_facebook.py` require a real public `image_url`. The bridge is missing.
+
+**Planned implementation:**
+- New skill `generate_image.py` — calls `imagen-3.0-generate-001` via `google-genai` (already installed), returns image bytes.
+- Upload bytes to Imgur anonymous API (no key required) → returns public `https://i.imgur.com/*.jpg` URL.
+- `content_calendar_watcher.py` calls image generation when routing an FB/IG post, passes URL to posting skill.
+- Fallback: if image generation fails, post without image (FB) or skip (IG — image required).
+
+**No new dependencies** — `google-genai>=1.0.0` already in `requirements.txt`.
+
+---
+
+## ✅ Latest Confirmed Outcomes (2026-04-26) — System Hardening + AI Content
+
+1. **Startup bug fixed** (`orchestrator.py:523`): `...` truncation broke `try` block — restored full processing logic.
+
+2. **Watcher ABC fix** (`twitter_watcher.py`, `meta_watcher.py`): Added missing `check_for_updates` + `create_action_file` abstract method implementations — all 5 watchers now start cleanly.
+
+3. **stop.sh updated**: Kill pattern now covers `twitter`, `meta`, `content_calendar` watchers (was only `filesystem|gmail|linkedin`).
+
+4. **Health dashboard auto-updates on preflight**: `watcher_manager.py` calls `_update_health_dashboard()` after every preflight pass or fail — no more stale April 24 health status.
+
+5. **Gmail archive bug fixed**: `process_email_actions.py` key transform was capitalizing `removeLabelIds` → `RemoveLabelIds`, causing `mcp_processor.py` param lookup to return empty labels. Archive instruction now hardcoded with explicit `removeLabels: ["INBOX"]`.
+
+6. **Gemini AI content generation** (`create_content_plan.py`):
+   - Replaced static hardcoded templates with `gemini-3-flash-preview` API calls.
+   - Platform-specific tone: LinkedIn = first-person individual developer (no company name), Facebook = casual/warm, Instagram = lifestyle/visual.
+   - Image prompts generated for FB + IG posts.
+   - `google-genai>=1.0.0` added to `requirements.txt`; `GEMINI_API_KEY` added to `.env`.
+   - Twitter excluded from calendar generation (free API tier blocked).
+
+7. **Live posting confirmed (2026-04-26)**:
+   - LinkedIn ✅ `urn:li:share:7454075831061999616` — posts as individual (`urn:li:person`), not company.
+   - Facebook ✅ `698457253346943_122171523488861671`
+   - Instagram ✅ `18104942089822106`
 
 ---
 

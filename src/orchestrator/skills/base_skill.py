@@ -117,6 +117,11 @@ class BaseSkill:
 def run_skill(skill_class, params_json: str):
     """Run a skill from command line"""
     try:
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+        except ImportError:
+            pass
         params = json.loads(params_json)
         vault_path = params.get('vault_path')
 

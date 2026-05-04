@@ -41,7 +41,7 @@ if [ ! -z "$MANAGER_PID" ]; then
 fi
 
 # Kill watcher processes started by watcher manager
-WATCHER_PIDS=$(pgrep -f "src.watchers.run_(filesystem|gmail|linkedin)_watcher" || true)
+WATCHER_PIDS=$(pgrep -f "src.watchers.run_(filesystem|gmail|linkedin|twitter|meta|content_calendar)_watcher" || true)
 if [ ! -z "$WATCHER_PIDS" ]; then
     echo "Stopping watcher processes..."
     kill $WATCHER_PIDS 2>/dev/null || true

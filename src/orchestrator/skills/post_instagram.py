@@ -54,12 +54,12 @@ class PostInstagramSkill(BaseSkill):
         scheduled_for = params.get('scheduled_for')
 
         if not caption:
-            raise ValueError("Caption is required for Instagram")
+            return {'success': False, 'error': 'Caption is required for Instagram'}
         if not image_url:
-            raise ValueError("Image URL is required for Instagram (must be a public URL)")
+            return {'success': False, 'error': 'Image URL is required for Instagram — add image_url to the approval file and re-approve'}
 
         # Check if approval is required
-        requires_approval = params.get('requires_approval', True)
+        requires_approval = params.get('requires_approval', params.get('require_approval', True))
 
         if requires_approval:
             return self._create_approval_request(caption, image_url, scheduled_for)
@@ -233,17 +233,25 @@ created: {datetime.now().isoformat()}
             if not ig_id:
                 raise ValueError("INSTAGRAM_BUSINESS_ACCOUNT_ID not configured in .env")
 
-            # Instagram posting requires a Page Access Token for the linked Page
-            # We can use the user long-lived token directly if it has enough permissions,
-            # but ideally we get the page token.
+            # Use saved page token first; fall back to live API then user token
             page_id = os.getenv('META_PAGE_ID')
-            pages = client.get_pages()
-            page_token = client.access_token # Fallback
-            
-            for page in pages:
-                if page['id'] == page_id:
-                    page_token = page['access_token']
-                    break
+            page_token = client.access_token  # last-resort fallback
+            token_file = Path(__file__).parent.parent.parent.parent / 'credentials' / 'meta_api_token.json'
+            if token_file.exists():
+                try:
+                    data = json.loads(token_file.read_text())
+                    if data.get('page_access_token'):
+                        page_token = data['page_access_token']
+                except Exception:
+                    pass
+            else:
+                try:
+                    for page in client.get_pages():
+                        if str(page.get('id')) == str(page_id):
+                            page_token = page['access_token']
+                            break
+                except Exception:
+                    pass
 
             result = client.post_to_instagram(ig_id, page_token, caption, image_url)
             
