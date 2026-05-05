@@ -80,10 +80,24 @@ class MetaAPIClient:
         }
         if link:
             params['link'] = link
-            
+
         response = requests.post(url, params=params)
         data = response.json()
-        
+
+        if 'id' in data:
+            return {'success': True, 'post_id': data['id']}
+        return {'success': False, 'error': data.get('error', 'Unknown error')}
+
+    def post_photo_to_facebook_page(self, page_id: str, page_access_token: str, message: str, image_url: str) -> Dict[str, Any]:
+        """Post a photo with caption to a Facebook Page using a public image URL."""
+        url = f"{self.BASE_URL}/{page_id}/photos"
+        params = {
+            'url': image_url,
+            'message': message,
+            'access_token': page_access_token,
+        }
+        response = requests.post(url, params=params)
+        data = response.json()
         if 'id' in data:
             return {'success': True, 'post_id': data['id']}
         return {'success': False, 'error': data.get('error', 'Unknown error')}

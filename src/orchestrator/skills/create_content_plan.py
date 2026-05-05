@@ -212,7 +212,7 @@ class CreateContentPlanSkill(BaseSkill):
                     'optimal_engagement_time': f"{hour}:00 - {hour + 2}:00"
                 }
 
-                if platform in ('facebook', 'instagram'):
+                if platform in ('facebook', 'instagram', 'linkedin'):
                     post['image_prompt'] = pc.get('image_prompt', '')
 
                 posts.append(post)
@@ -275,11 +275,11 @@ Generate UNIQUE, FRESH content for each platform below. Content must be differen
 Platform tone requirements:
 {platform_blocks}
 
-For Facebook and Instagram posts, add an IMAGE_PROMPT line (1 sentence describing a compelling visual to pair with the post).
+For LinkedIn, Facebook, and Instagram posts, add an image_prompt field (1 sentence describing a compelling visual to pair with the post).
 
 Return ONLY valid JSON in this exact format:
 {{
-  "linkedin": {{"content": "..."}},
+  "linkedin": {{"content": "...", "image_prompt": "..."}},
   "facebook": {{"content": "...", "image_prompt": "..."}},
   "instagram": {{"content": "...", "image_prompt": "..."}}
 }}
@@ -321,7 +321,7 @@ Include only the platforms listed. No markdown fences around JSON."""
         result = {}
         for p in platforms:
             entry: Dict[str, Any] = {'content': text[:270] if p == 'twitter' else text}
-            if p in ('facebook', 'instagram'):
+            if p in ('facebook', 'instagram', 'linkedin'):
                 entry['image_prompt'] = f"Professional {ind} team working collaboratively in a modern office."
             result[p] = entry
         return result
@@ -368,7 +368,7 @@ Include only the platforms listed. No markdown fences around JSON."""
                 'hashtags': post['hashtags']
             }
 
-            if platform in ('facebook', 'instagram') and post.get('image_prompt'):
+            if platform in ('facebook', 'instagram', 'linkedin') and post.get('image_prompt'):
                 post_file_data['image_prompt'] = post['image_prompt']
             
             (calendar_dir / filename).write_text(json.dumps(post_file_data, indent=2), encoding='utf-8')

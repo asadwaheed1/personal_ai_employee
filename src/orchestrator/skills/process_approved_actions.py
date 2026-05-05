@@ -183,9 +183,10 @@ class ProcessApprovedActionsSkill(BaseSkill):
                 if not post_content:
                     post_content = self._parse_md_code_block(content, '## Content')
                 link = self._parse_md_bold_field(content, 'Link')
+                image_url = self._parse_md_bold_field(content, 'Image URL')
                 from .post_facebook import PostFacebookSkill
                 skill = PostFacebookSkill(str(self.vault_path))
-                return skill.execute({'content': post_content, 'link': link, 'require_approval': False})
+                return skill.execute({'content': post_content, 'link': link, 'image_url': image_url, 'require_approval': False})
 
             elif platform == 'instagram':
                 caption = self._parse_md_code_block(content, '## Caption')
@@ -200,9 +201,10 @@ class ProcessApprovedActionsSkill(BaseSkill):
                 post_content = self._parse_md_code_block(content, '## Post Content')
                 if not post_content:
                     post_content = self._parse_md_code_block(content, '## Content')
+                image_url = self._parse_md_bold_field(content, 'Image URL')
                 from .post_linkedin import PostLinkedInSkill
                 skill = PostLinkedInSkill(str(self.vault_path))
-                return skill.execute({'content': post_content, 'require_approval': False})
+                return skill.execute({'content': post_content, 'image_url': image_url, 'require_approval': False})
 
             elif platform == 'twitter':
                 tweet = self._parse_md_code_block(content, '## Tweet')

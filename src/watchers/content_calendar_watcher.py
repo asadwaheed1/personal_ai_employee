@@ -3,6 +3,7 @@ Content Calendar Watcher - Monitors all social media platforms for scheduled pos
 Used for Gold Tier 2.3: Cross-Platform Content Calendar
 """
 
+import sys
 import time
 import json
 import logging
@@ -53,6 +54,8 @@ class ContentCalendarWatcher(BaseWatcher):
                             'platform': platform.lower(),
                             'type': f"{platform.lower()}_scheduled_post",
                             'content': data.get('content', ''),
+                            'image_url': data.get('image_url') or data.get('media_path'),
+                            'image_prompt': data.get('image_prompt', ''),
                             'media_path': data.get('media_path') or data.get('image_url'),
                             'scheduled_for': scheduled_time_str,
                             'calendar_file': str(post_file),
@@ -84,12 +87,48 @@ class ContentCalendarWatcher(BaseWatcher):
 
         return items
 
+    def _generate_image(self, prompt: str) -> str:
+        """Call GenerateImageSkill to produce a public image URL from a text prompt."""
+        try:
+            try:
+                from ..orchestrator.skills.generate_image import GenerateImageSkill
+            except ImportError:
+                sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'orchestrator' / 'skills'))
+                from generate_image import GenerateImageSkill
+
+            skill = GenerateImageSkill(str(self.vault_path))
+            result = skill.execute({'prompt': prompt})
+            if result.get('success') and result.get('image_url'):
+                self.logger.info(f"Image generated: {result['image_url']}")
+                return result['image_url']
+            self.logger.warning(f"Image generation returned no URL: {result.get('error')}")
+        except Exception as e:
+            self.logger.warning(f"Image generation failed: {e}")
+        return ''
+
     def create_action_file(self, item: Dict[str, Any]) -> Path:
         """Create action file for a scheduled post"""
         platform = item['platform']
+
+        # Auto-generate image for visual platforms before writing the action file
+        if platform in ('facebook', 'instagram', 'linkedin'):
+            image_prompt = item.get('image_prompt', '')
+            if image_prompt and not item.get('image_url'):
+                self.logger.info(f"Generating image for {platform} post...")
+                item['image_url'] = self._generate_image(image_prompt)
+
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         action_filename = f"SCHEDULED_{platform.upper()}_{timestamp}.md"
         action_filepath = self.needs_action / action_filename
+
+        image_url = item.get('image_url') or ''
+        image_url_section = ''
+        if platform in ('instagram', 'facebook', 'linkedin') and (image_url or item.get('image_prompt')):
+            image_prompt = item.get('image_prompt') or ''
+            prompt_line = f'\n## Image Prompt\n{image_prompt}\n' if image_prompt else ''
+            url_value = image_url if image_url else 'REPLACE_WITH_ACTUAL_IMAGE_URL'
+            note = '*(Meta requires a public direct URL)*' if platform == 'instagram' else '*(public direct image URL)*'
+            image_url_section = f'{prompt_line}\n## Image URL\n**{url_value}**\n{note}\n'
 
         content = f"""---
 type: {item['type']}
@@ -107,11 +146,11 @@ requires_approval: true
 ```
 {item['content']}
 ```
-
+{image_url_section}
 ## Details
 - **Platform**: {platform.capitalize()}
 - **Scheduled for**: {item['scheduled_for']}
-- **Media**: {'Yes' if item.get('media_path') else 'No'}
+- **Media**: {'Yes' if image_url else 'No'}
 
 ## Actions Required
 1. Review the content above

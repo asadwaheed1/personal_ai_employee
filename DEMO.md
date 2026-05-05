@@ -1,6 +1,6 @@
 # Gold Tier Demo Guide
 
-**Branch:** `gold-imp` | **Date:** 2026-04-30  
+**Branch:** `gold-imp` | **Date:** 2026-05-04  
 **Prereq:** `.env` filled, `venv` active, `./setup.sh` already run.
 
 > **All commands are self-contained** — each block `cd`s to project root via subshell. Run from any directory.
@@ -45,7 +45,7 @@ All 5 watchers start: filesystem, Gmail, LinkedIn, Twitter, Meta, content_calend
 
 **What it shows:** `meta_api_client.py` calls Meta Graph API v21.0 → posts to FB Page + IG Business account → audit entry written.
 
-### Facebook
+### Facebook (text post)
 
 ```bash
 (cd ~/piaic/projects/personal_ai_employee && venv/bin/python -c "
@@ -53,6 +53,21 @@ from src.orchestrator.skills.post_facebook import PostFacebookSkill
 skill = PostFacebookSkill('ai_employee_vault')
 result = skill.execute({
     'content': 'Gold Tier demo — AI Employee live on Facebook. #AIEmployee #PIAIC',
+    'require_approval': False
+})
+print(result)
+")
+```
+
+### Facebook (photo post with image URL)
+
+```bash
+(cd ~/piaic/projects/personal_ai_employee && venv/bin/python -c "
+from src.orchestrator.skills.post_facebook import PostFacebookSkill
+skill = PostFacebookSkill('ai_employee_vault')
+result = skill.execute({
+    'content': 'AI Employee Gold Tier — image post via Gemini Imagen. #AIEmployee #PIAIC',
+    'image_url': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Culinary_fruits_front_view.jpg/1200px-Culinary_fruits_front_view.jpg',
     'require_approval': False
 })
 print(result)
@@ -114,11 +129,16 @@ ls ~/piaic/projects/personal_ai_employee/src/orchestrator/skills/post_twitter.py
 
 ---
 
-## 3. Cross-Platform Content Calendar (Gemini AI)
+## 3. Cross-Platform Content Calendar + AI Image Generation
 
-**Requirement:** "Full cross-domain integration" — AI generates platform-specific content across all channels.
+**Requirement:** "Full cross-domain integration" — AI generates platform-specific content + images across all channels.
 
-**What it shows:** Single skill call → `gemini-2.0-flash-preview` generates distinct copy per platform (LinkedIn = first-person technical, Facebook = casual/warm, Instagram = lifestyle/visual + image prompt).
+**What it shows:**
+1. Single skill call → Gemini generates distinct copy per platform (LinkedIn = first-person technical, Facebook = casual/warm, Instagram = lifestyle/visual) + `image_prompt` for all 3.
+2. When post is due, `content_calendar_watcher.py` auto-calls `GenerateImageSkill` → Gemini Imagen generates image → uploads to catbox.moe → real public URL embedded in action file.
+3. Approved post includes real `image_url` → FB uses `/photos` endpoint, IG uses container API, LI downloads + uploads via asset API.
+
+### Generate content calendar
 
 ```bash
 (cd ~/piaic/projects/personal_ai_employee && venv/bin/python -c "
@@ -138,7 +158,20 @@ View generated calendar:
 cat ~/piaic/projects/personal_ai_employee/ai_employee_vault/Content_Calendar/CALENDAR_2026-W19.md
 ```
 
-`content_calendar_watcher.py` monitors this file → auto-routes approved posts to `PostLinkedInSkill`, `PostFacebookSkill`, `PostInstagramSkill` at scheduled time.
+### Generate image from prompt (standalone)
+
+```bash
+(cd ~/piaic/projects/personal_ai_employee && venv/bin/python -c "
+from src.orchestrator.skills.generate_image import GenerateImageSkill
+skill = GenerateImageSkill('ai_employee_vault')
+result = skill.execute({'prompt': 'A developer reviewing AI-generated analytics on a futuristic dashboard, cinematic lighting'})
+print(result)
+")
+```
+
+Returns: `{'success': True, 'image_url': 'https://files.catbox.moe/...jpg'}` — usable directly in FB/IG/LI post skills.
+
+`content_calendar_watcher.py` calls this automatically when a calendar post becomes due and has an `image_prompt`.
 
 ---
 
@@ -339,9 +372,9 @@ Active jobs:
 
 | Requirement | Feature | Evidence |
 |---|---|---|
-| Full cross-domain integration | Gemini content calendar LI+FB+IG | `Content_Calendar/CALENDAR_*.md` |
+| Full cross-domain integration | Gemini content calendar LI+FB+IG + AI image generation | `Content_Calendar/CALENDAR_*.md`, `generate_image.py` |
 | Odoo accounting via MCP | Revenue/expense read, draft invoice | Odoo port 8069, `Pending_Approval/ODOO_*` |
-| Facebook + Instagram | `PostFacebookSkill`, `PostInstagramSkill` | Live post IDs, meta_watcher |
+| Facebook + Instagram | `PostFacebookSkill` (text + photo), `PostInstagramSkill` | Live post IDs, meta_watcher |
 | Twitter/X | `post_twitter.py`, `twitter_watcher.py`, auth verified | 402 = free API limit, not code bug |
 | Multiple MCP servers | gmail + filesystem + odoo | `.mcp.json` |
 | CEO Briefing + Audit | `GenerateCEOBriefingSkill` | `Briefings/*.md` with Odoo financials |

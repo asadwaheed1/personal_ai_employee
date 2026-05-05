@@ -51,6 +51,7 @@ class PostFacebookSkill(BaseSkill):
         """Create a new Facebook post (usually goes through approval)"""
         content = params.get('content')
         link = params.get('link')
+        image_url = params.get('image_url')
         scheduled_for = params.get('scheduled_for')
 
         if not content:
@@ -60,10 +61,10 @@ class PostFacebookSkill(BaseSkill):
         requires_approval = params.get('requires_approval', params.get('require_approval', True))
 
         if requires_approval:
-            return self._create_approval_request(content, link, scheduled_for)
+            return self._create_approval_request(content, link, scheduled_for, image_url)
 
         # Post directly if configured
-        return self._post_to_facebook(content, link)
+        return self._post_to_facebook(content, link, image_url)
 
     def _schedule_post(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Schedule a post for future publishing"""
@@ -160,7 +161,8 @@ class PostFacebookSkill(BaseSkill):
         }
 
     def _create_approval_request(self, content: str, link: Optional[str],
-                                  scheduled_for: Optional[str]) -> Dict[str, Any]:
+                                  scheduled_for: Optional[str],
+                                  image_url: Optional[str] = None) -> Dict[str, Any]:
         """Create approval request file for Facebook post"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         approval_filename = f"FACEBOOK_POST_{timestamp}.md"
@@ -171,9 +173,12 @@ class PostFacebookSkill(BaseSkill):
             'action': 'facebook_post',
             'content': content,
             'link': link,
+            'image_url': image_url,
             'scheduled_for': scheduled_for,
             'created_at': datetime.now().isoformat()
         }
+
+        image_section = f'\n## Image URL\n**{image_url}**\n*(public direct image URL)*\n' if image_url else ''
 
         approval_content = f"""---
 type: approval_request
@@ -189,7 +194,7 @@ created: {datetime.now().isoformat()}
 ```
 {content}
 ```
-
+{image_section}
 ## Link
 {'**Yes**: ' + str(link) if link else '**None**'}
 
@@ -221,7 +226,8 @@ created: {datetime.now().isoformat()}
         """Execute approved Facebook post"""
         content = params.get('content')
         link = params.get('link')
-        return self._post_to_facebook(content, link)
+        image_url = params.get('image_url')
+        return self._post_to_facebook(content, link, image_url)
 
     def _get_page_token(self, client, page_id: str) -> Optional[str]:
         """Get page access token: saved credentials first, live API fallback."""
@@ -243,7 +249,7 @@ created: {datetime.now().isoformat()}
             pass
         return None
 
-    def _post_to_facebook(self, content: str, link: Optional[str]) -> Dict[str, Any]:
+    def _post_to_facebook(self, content: str, link: Optional[str], image_url: Optional[str] = None) -> Dict[str, Any]:
         """Actually post to Facebook using the API"""
         try:
             client = self._get_meta_client()
@@ -257,7 +263,10 @@ created: {datetime.now().isoformat()}
             if not page_token:
                 raise ValueError(f"Could not find access token for Page ID {page_id}. Grant 'pages_manage_posts' permission.")
 
-            result = client.post_to_facebook_page(page_id, page_token, content, link)
+            if image_url:
+                result = client.post_photo_to_facebook_page(page_id, page_token, content, image_url)
+            else:
+                result = client.post_to_facebook_page(page_id, page_token, content, link)
             
             if result.get('success'):
                 self.logger.info(f"Facebook post published: {result.get('post_id')}")
