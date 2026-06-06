@@ -75,6 +75,7 @@ class PostLinkedInSkill(BaseSkill):
         """Create a new LinkedIn post"""
         content = params.get('content')
         image_path = params.get('image_path')
+        image_url = params.get('image_url')
         scheduled_for = params.get('scheduled_for')
 
         if not content:
@@ -85,13 +86,13 @@ class PostLinkedInSkill(BaseSkill):
             raise ValueError("LinkedIn post content exceeds 3000 character limit")
 
         # Check if approval is required (always required for LinkedIn posts)
-        requires_approval = params.get('requires_approval', True)
+        requires_approval = params.get('requires_approval', params.get('require_approval', True))
 
         if requires_approval:
-            return self._create_approval_request(content, image_path, scheduled_for)
+            return self._create_approval_request(content, image_path, scheduled_for, image_url)
 
         # Post directly (if configured to skip approval)
-        return self._post_to_linkedin(content, image_path)
+        return self._post_to_linkedin(content, image_path, image_url)
 
     def _schedule_post(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Schedule a post for future publishing"""
@@ -213,7 +214,8 @@ class PostLinkedInSkill(BaseSkill):
         return None
 
     def _create_approval_request(self, content: str, image_path: Optional[str],
-                                  scheduled_for: Optional[str]) -> Dict[str, Any]:
+                                  scheduled_for: Optional[str],
+                                  image_url: Optional[str] = None) -> Dict[str, Any]:
         """Create approval request file for LinkedIn post"""
         import os
 
@@ -227,6 +229,7 @@ class PostLinkedInSkill(BaseSkill):
             'action': 'linkedin_post',
             'content': content,
             'image_path': image_path,
+            'image_url': image_url,
             'scheduled_for': scheduled_for,
             'created_at': datetime.now().isoformat()
         }
@@ -268,6 +271,10 @@ expires: {(datetime.now() + timedelta(hours=48)).isoformat()}
 
 ## Image Attachment
 {'**Yes**: ' + str(image_path) if image_path else '**None**'}
+
+## Image URL
+**{image_url if image_url else 'None'}**
+*(public direct image URL — downloaded and uploaded to LinkedIn on posting)*
 
 ## Scheduling
 {'Scheduled for: ' + scheduled_for if scheduled_for else 'Immediate posting upon approval'}
@@ -326,15 +333,18 @@ Once approved, the post will be published to LinkedIn automatically and:
         """Execute posting to LinkedIn (called after approval)"""
         content = params.get('content')
         image_path = params.get('image_path')
+        image_url = params.get('image_url')
 
         if not content:
             raise ValueError("Content is required to post to LinkedIn")
 
-        return self._post_to_linkedin(content, image_path)
+        return self._post_to_linkedin(content, image_path, image_url)
 
-    def _post_to_linkedin(self, content: str, image_path: Optional[str]) -> Dict[str, Any]:
+    def _post_to_linkedin(self, content: str, image_path: Optional[str] = None, image_url: Optional[str] = None) -> Dict[str, Any]:
         """Actually post content to LinkedIn using the official API"""
         import os
+        import tempfile
+        import requests as req_lib
 
         # Check dry run mode
         dry_run = os.getenv('DRY_RUN', 'false').lower() == 'true'
@@ -345,6 +355,25 @@ Once approved, the post will be published to LinkedIn automatically and:
                 "content": content[:100] + "...",
                 "message": "Post would be published (dry run mode)"
             }
+
+        # Download image_url to a temp file if no local path given
+        temp_image_path = None
+        if image_url and not image_path:
+            try:
+                resp = req_lib.get(image_url, timeout=30)
+                resp.raise_for_status()
+                ext = '.jpg'
+                url_clean = image_url.split('?')[0]
+                if '.' in url_clean.split('/')[-1]:
+                    ext = '.' + url_clean.split('.')[-1].lower()
+                tf = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
+                tf.write(resp.content)
+                tf.close()
+                temp_image_path = tf.name
+                image_path = temp_image_path
+                self.logger.info(f"Downloaded image from URL to temp: {temp_image_path}")
+            except Exception as e:
+                self.logger.warning(f"Failed to download image from URL ({image_url}): {e}")
 
         try:
             # Get LinkedIn API client
@@ -361,6 +390,9 @@ Once approved, the post will be published to LinkedIn automatically and:
 
                 # Log activity
                 self._log_post(content, result.get('post_id'))
+                
+                # Gold Tier: Structured Audit Logging
+                self._log_audit('linkedin_post', result.get('post_id'), 'success')
 
                 return {
                     "success": True,
@@ -373,17 +405,41 @@ Once approved, the post will be published to LinkedIn automatically and:
             else:
                 error_msg = result.get('message', 'Unknown error')
                 self.logger.error(f"LinkedIn API error: {error_msg}")
+                
+                # Check for transient errors to trigger retry
+                transient_indicators = ['timeout', 'connection', 'network', 'busy', '503', '504', '429']
+                if any(ind in error_msg.lower() for ind in transient_indicators):
+                    return {
+                        "success": False,
+                        "status": "retry",
+                        "error": error_msg,
+                        "message": f"Transient LinkedIn API error: {error_msg}. Post will be retried."
+                    }
+                
                 raise RuntimeError(f"LinkedIn API error: {error_msg}")
 
-        except ValueError as e:
-            self.logger.error(f"LinkedIn configuration error: {e}")
-            raise
-        except RuntimeError as e:
-            self.logger.error(f"LinkedIn authentication error: {e}")
+        except (ValueError, RuntimeError) as e:
+            self.logger.error(f"LinkedIn error: {e}")
             raise
         except Exception as e:
+            error_msg = str(e).lower()
+            transient_indicators = ['timeout', 'connection', 'network', 'dns', 'refused']
+            if any(ind in error_msg for ind in transient_indicators):
+                return {
+                    "success": False,
+                    "status": "retry",
+                    "error": str(e),
+                    "message": f"Transient connection error: {str(e)}. Post will be retried."
+                }
+
             self.logger.error(f"Failed to post to LinkedIn: {e}", exc_info=True)
             raise RuntimeError(f"LinkedIn posting failed: {e}")
+        finally:
+            if temp_image_path:
+                try:
+                    Path(temp_image_path).unlink(missing_ok=True)
+                except Exception:
+                    pass
 
     def _log_post(self, content: str, post_id: Optional[str] = None):
         """Log the posted content"""

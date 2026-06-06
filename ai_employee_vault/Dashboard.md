@@ -1,39 +1,13 @@
 # AI Employee Dashboard
 
 ## Last Updated
-2026-04-22 16:37
+2026-05-04 17:04
 
 ## System Status
 ✅ Operational
 
-## Recent Activity
-- [2026-04-22 16:27] MCP actions executed: 0 success, 3 failed
-- [2026-04-22 16:24] Approved execution complete: 1/1 succeeded
-- [2026-04-22 16:24] Approved intake: 1 file(s) ready for execution
-- [2026-04-22 16:24] Email auto-processing: processed=0, kept_for_review=31, moved_to_pending_approval=0
-- [2026-04-22 16:24] Needs_Action intake: 31 file(s) detected
-- [2026-04-22 16:23] Email auto-processing: processed=0, kept_for_review=31, moved_to_pending_approval=1
-- [2026-04-22 16:23] Needs_Action intake: 32 file(s) detected
-- [2026-04-22 16:23] Gmail: 1 new item(s) detected
-- [2026-04-22 16:19] Email auto-processing: processed=0, kept_for_review=31, moved_to_pending_approval=0
-- [2026-04-22 16:19] Needs_Action intake: 31 file(s) detected
-- [2026-04-22 16:00] Created content calendar with 5 posts for week of Apr 27
-- [2026-04-22 15:30] Executed 1 approved actions (1 successful)
-- [2026-04-22 15:18] Gmail: 1 new item(s) detected
-- [2026-04-22 15:14] Email auto-processing: processed=0, kept_for_review=31, moved_to_pending_approval=0
-- [2026-04-22 15:14] Needs_Action intake: 31 file(s) detected
-- [2026-04-22 15:00] Created content calendar with 5 posts for week of Apr 27
-- [2026-04-22 12:50] Approved execution complete: 1/1 succeeded
-- [2026-04-22 12:49] LinkedIn post published: urn:li:share:7452624687576178688 - LINKEDIN_POST_20260422_124615.md moved to Done
-- [2026-04-22 12:46] LinkedIn post pending approval: LINKEDIN_POST_20260422_124615.md
-- [2026-04-22 12:36] MCP actions executed: 0 success, 1 failed
-- [2026-04-22 12:35] Approved execution complete: 1/1 succeeded
-- [2026-04-22 12:35] Approved intake: 1 file(s) ready for execution
-- [2026-04-22 12:34] Email auto-processing: processed=0, kept_for_review=31, moved_to_pending_approval=0
-- [2026-04-22 12:34] Needs_Action intake: 31 file(s) detected
-- [2026-04-22 12:31] Needs_Action intake: 31 file(s) detected
 ## Pending Actions
-44 pending actions (31 in Needs_Action, 13 awaiting approval)
+29 pending actions (3 in Needs_Action, 26 awaiting approval)
 
 ## Quick Links
 - [Needs_Action](./Needs_Action/)
@@ -41,56 +15,62 @@
 - [Content_Calendar](./Content_Calendar/)
 - [Logs](./Logs/)
 
----
-*Dashboard auto-updates when watchers are running*
 
 
-## Summary
 
-Auto-processed 0 emails; kept 31 for review; moved 0 to Pending_Approval
+
+
+
+## System Health
+
+**Last Checked**: 2026-05-04 17:53:33
+
+| Service | Status | Details |
+|---------|--------|---------|
+| Gmail MCP | 🟢 healthy | Authenticated |
+| LinkedIn API | 🟢 healthy | Authenticated as 1hRcj0HFMs |
+## Recent Activity
+- [2026-05-04 18:01] Created content calendar with 15 posts for week of May 04
+- [2026-05-04 17:45] Executed 3 approved actions (3 successful)
+- [2026-05-04 17:04] ContentCalendar: 3 new item(s) detected
+- [2026-05-04 17:00] Created content calendar with 15 posts for week of May 04
+- [2026-05-04 16:15] Executed 0 approved actions (0 successful)
+- [2026-05-04 16:12] Executed 0 approved actions (0 successful)
+- [2026-05-04 16:12] Approved intake: 1 file(s) ready for execution
+- [2026-05-04 16:15] Non-email processing: 3 social media posts moved to Pending_Approval (Facebook, Instagram, LinkedIn) — awaiting human approval
+- [2026-05-04 16:10] Needs_Action intake: 3 file(s) detected
+- [2026-05-04 16:10] MCP actions executed: 0 success, 0 failed
+- [2026-05-04 16:04] ContentCalendar: 3 new item(s) detected
+- [2026-05-04 16:00] Created content calendar with 15 posts for week of May 04
+- [2026-05-04 15:01] Created content calendar with 15 posts for week of May 04
+- [2026-05-04 12:28] LinkedIn post published (post_id: urn:li:share:7456967880002330624) — SCHEDULED_LINKEDIN_20260504_115214.md → Done
+- [2026-05-04 12:23] Executed 1 approved actions (1 successful)
+- [2026-05-04 12:22] Facebook post published (post_id: 698457253346943_122172449192861671) — SCHEDULED_FACEBOOK_20260504_115214.md → Done
+- [2026-05-04 12:21] Approved intake: 3 file(s) ready for execution
+- [2026-05-04 12:26] Non-email processing: 3 social media posts moved to Pending_Approval (Facebook, Instagram, LinkedIn) — awaiting human approval
+- [2026-05-04 12:19] Needs_Action intake: 3 file(s) detected
+- [2026-05-04 12:19] MCP actions executed: 0 success, 0 failed
+- [2026-05-04 12:18] ContentCalendar: 3 new item(s) detected
+- [2026-05-04 12:00] MCP actions executed: 0 success, 0 failed
+- [2026-05-04 12:00] Created content calendar with 15 posts for week of May 04
+- [2026-05-04 12:00] Executed 3 approved actions (3 successful)
+- [2026-05-04 11:59] MCP actions executed: 16 success, 0 failed
+- [2026-05-04 11:55] Non-email processing: 3 social media posts moved to Pending_Approval (Facebook, Instagram, LinkedIn) — awaiting human approval
+- [2026-05-04 11:52] Email auto-processing: processed=8, kept_for_review=0, moved_to_pending_approval=0
 
 ## Content Schedule
-**Week of April 27: 5 posts scheduled**
-Next post: 2026-04-27T12:00:00
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+**Week of May 04: 15 posts scheduled**
+Next post: 2026-05-04T12:00:00
 
 ## Watcher Status
 
 | Watcher | Status | PID | Uptime | Restarts |
 |---------|--------|-----|--------|----------|
-| filesystem_watcher | 🟢 running | 65602 | 17m | 0|
-| gmail_watcher | 🟢 running | 65619 | 17m | 0|
-| linkedin_watcher | 🟢 running | 65633 | 17m | 0|
+| filesystem_watcher | 🟢 running | 10463 | 10m | 0|
+| gmail_watcher | 🟢 running | 10480 | 10m | 0|
+| content_calendar_watcher | 🟢 running | 10496 | 10m | 0|
+| twitter_watcher | 🟢 running | 10497 | 10m | 0|
+| meta_watcher | 🟢 running | 10513 | 10m | 0|
+## Summary
 
+Executing 1 approved action(s)

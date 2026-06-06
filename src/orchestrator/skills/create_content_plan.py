@@ -11,10 +11,11 @@ This skill creates a structured content plan based on:
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 try:
     from .base_skill import BaseSkill, run_skill
 except ImportError:
@@ -28,7 +29,7 @@ class CreateContentPlanSkill(BaseSkill):
         """Create content plan"""
         week_start = params.get('week_start')
         num_posts = params.get('num_posts', 5)
-        platforms = params.get('platforms', ['linkedin'])
+        platforms = params.get('platforms', ['linkedin', 'facebook', 'instagram'])
 
         # Determine week start
         if week_start:
@@ -190,23 +191,31 @@ class CreateContentPlanSkill(BaseSkill):
             # Select theme
             theme = themes[i % len(themes)]
 
-            # Generate post content
-            content = self._generate_post_content(theme, context)
+            # Generate platform-specific content via Claude API
+            platform_content = self._generate_post_content_ai(
+                theme, context, platforms, post_time.strftime('%Y-%m-%d')
+            )
 
-            post = {
-                'id': f"POST_{post_time.strftime('%Y%m%d_%H%M')}",
-                'scheduled_for': post_time.isoformat(),
-                'platform': 'linkedin',
-                'type': theme['type'],
-                'title': theme['title'],
-                'content': content,
-                'hashtags': self._generate_hashtags(context),
-                'status': 'scheduled',
-                'created_at': datetime.now().isoformat(),
-                'optimal_engagement_time': f"{hour}:00 - {hour + 2}:00"
-            }
+            for platform in platforms:
+                pc = platform_content.get(platform, {})
+                content = pc.get('content', '')
+                post = {
+                    'id': f"POST_{platform.upper()}_{post_time.strftime('%Y%m%d_%H%M')}",
+                    'scheduled_for': post_time.isoformat(),
+                    'platform': platform,
+                    'type': theme['type'],
+                    'title': theme['title'],
+                    'content': content,
+                    'hashtags': self._generate_hashtags(context, platform),
+                    'status': 'scheduled',
+                    'created_at': datetime.now().isoformat(),
+                    'optimal_engagement_time': f"{hour}:00 - {hour + 2}:00"
+                }
 
-            posts.append(post)
+                if platform in ('facebook', 'instagram', 'linkedin'):
+                    post['image_prompt'] = pc.get('image_prompt', '')
+
+                posts.append(post)
 
         return {
             'week_start': start_date.strftime('%Y-%m-%d'),
@@ -220,106 +229,161 @@ class CreateContentPlanSkill(BaseSkill):
             'posts': posts
         }
 
-    def _generate_post_content(self, theme: Dict, context: Dict) -> str:
-        """Generate post content based on theme and context"""
-        content_templates = {
-            'thought_leadership': f"""What I've learned about {context.get('industry', 'our industry')} this week:
-
-The landscape is shifting faster than ever. Here are 3 observations that stood out:
-
-1. Innovation is happening at the intersection of disciplines
-2. Collaboration beats competition in the long run
-3. Adaptability is the new stability
-
-What's your take on these trends? I'd love to hear your perspective in the comments.
-
-#ThoughtLeadership #Innovation #{context.get('industry', 'Business').replace(' ', '')}""",
-
-            'case_study': f"""Success story from this week 🎉
-
-A client came to us with a challenge that seemed impossible at first. Through collaboration and persistence, we delivered results that exceeded expectations.
-
-The key lessons:
-✅ Clear communication from day one
-✅ Iterative approach beats big bang
-✅ Celebrate small wins along the way
-
-Every project teaches us something new.
-
-#ClientSuccess #Results #Partnership""",
-
-            'engagement': f"""Quick question for my network:
-
-What's the biggest challenge you're facing in {context.get('industry', 'your work')} right now?
-
-I'm curious to hear your thoughts and maybe we can crowdsource some solutions together.
-
-Drop your answer below 👇
-
-#Question #Community #Discussion""",
-
-            'behind_scenes': f"""Behind the scenes at {context.get('business_name', 'our company')} 👀
-
-Here's something you might not know about how we work:
-
-We believe the best ideas come from diverse perspectives. That's why we make time for creative exploration every week.
-
-The result? Better solutions for our clients and a team that genuinely loves what they do.
-
-What does your creative process look like?
-
-#BehindTheScenes #Culture #Innovation""",
-
-            'value_proposition': f"""The difference between good and great isn't talent—it's consistency.
-
-At {context.get('business_name', 'our company')}, we show up every day committed to:
-
-🎯 Delivering exceptional results
-🤝 Building genuine relationships
-📈 Creating long-term value
-
-It's not always easy, but it's always worth it.
-
-What's your philosophy on consistency?
-
-#Values #Excellence #{context.get('industry', 'Business').replace(' ', '')}"""
+    def _generate_post_content_ai(
+        self,
+        theme: Dict,
+        context: Dict,
+        platforms: List[str],
+        week_date: str,
+    ) -> Dict[str, Any]:
+        """Call Claude API to generate unique platform-specific content for a theme."""
+        platform_tone = {
+            'linkedin': (
+                'Write as an individual software developer sharing personal insights — first person singular (I, my, I\'ve). '
+                'Do NOT mention any company name or use "we/our". '
+                'Professional, thought-leadership tone. Structured points or numbered lists. '
+                'End with a question to spark discussion. No excessive emojis. 150-300 words.'
+            ),
+            'twitter': (
+                'Punchy, direct, conversational. Max 270 characters including hashtags. '
+                '1-2 hashtags only. No fluff.'
+            ),
+            'facebook': (
+                'Warm, friendly, casual tone. Use 2-3 emojis naturally. '
+                'Relatable story or hook. Encourage comments and shares. 80-150 words.'
+            ),
+            'instagram': (
+                'Visual storytelling, lifestyle-oriented, casual and upbeat. '
+                'Strong hook in first line. Emojis. 60-120 words for caption. '
+                'Suggest a compelling image to accompany this post.'
+            ),
         }
 
-        return content_templates.get(theme['type'], content_templates['thought_leadership'])
+        platform_blocks = '\n'.join(
+            f'- {p}: {platform_tone.get(p, "Professional tone.")}'
+            for p in platforms
+        )
 
-    def _generate_hashtags(self, context: Dict) -> List[str]:
-        """Generate relevant hashtags"""
+        prompt = f"""You are a social media content writer for a {context.get('industry', 'Technology')} brand.
+
+Week of: {week_date}
+Post theme: {theme['title']} ({theme['type']})
+Theme focus: {theme['focus']}
+
+Generate UNIQUE, FRESH content for each platform below. Content must be different each week — do not use generic filler.
+
+Platform tone requirements:
+{platform_blocks}
+
+For LinkedIn, Facebook, and Instagram posts, add an image_prompt field (1 sentence describing a compelling visual to pair with the post).
+
+Return ONLY valid JSON in this exact format:
+{{
+  "linkedin": {{"content": "...", "image_prompt": "..."}},
+  "facebook": {{"content": "...", "image_prompt": "..."}},
+  "instagram": {{"content": "...", "image_prompt": "..."}}
+}}
+
+Include only the platforms listed. No markdown fences around JSON."""
+
+        try:
+            from google import genai
+            api_key = os.getenv('GEMINI_API_KEY')
+            if not api_key:
+                raise ValueError("GEMINI_API_KEY not set")
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model='gemini-3-flash-preview',
+                contents=prompt,
+            )
+            raw = response.text.strip()
+            if raw.startswith('```'):
+                raw = raw.split('\n', 1)[1].rsplit('```', 1)[0].strip()
+            result = json.loads(raw)
+            self.logger.info(f"Gemini generated content for theme '{theme['type']}'")
+            return result
+        except Exception as e:
+            self.logger.warning(f"Gemini content generation failed ({e}), using fallback templates")
+            return self._fallback_content(theme, context, platforms)
+
+    def _fallback_content(self, theme: Dict, context: Dict, platforms: List[str]) -> Dict[str, Any]:
+        """Static fallback content when Claude API unavailable."""
+        biz = context.get('business_name', 'our company')
+        ind = context.get('industry', 'Technology')
+        base = {
+            'thought_leadership': f"This week in {ind}: three things that stood out to us.\n\n1. Speed of change is accelerating\n2. Collaboration unlocks better outcomes\n3. Simplicity wins every time\n\nWhat trends are you watching? #ThoughtLeadership #{ind.replace(' ', '')}",
+            'case_study': f"A challenge became a win this week at {biz}.\n\nThe lesson: clear scope + fast feedback loops = results that exceed expectations. #ClientSuccess",
+            'engagement': f"Quick question: what's the hardest part of working in {ind} right now?\n\nDrop your answer below 👇 #Community",
+            'behind_scenes': f"Behind the scenes at {biz}: great ideas come from diverse perspectives. We carve out time each week for creative thinking. #BehindTheScenes",
+            'value_proposition': f"Consistency over brilliance. At {biz} we show up every day committed to delivering real value. #Values #{ind.replace(' ', '')}",
+        }
+        text = base.get(theme['type'], base['thought_leadership'])
+        result = {}
+        for p in platforms:
+            entry: Dict[str, Any] = {'content': text[:270] if p == 'twitter' else text}
+            if p in ('facebook', 'instagram', 'linkedin'):
+                entry['image_prompt'] = f"Professional {ind} team working collaboratively in a modern office."
+            result[p] = entry
+        return result
+
+    def _generate_hashtags(self, context: Dict, platform: str = 'linkedin') -> List[str]:
+        """Generate platform-appropriate hashtags."""
         industry = context.get('industry', 'Business')
-        base_tags = ['#LinkedIn', '#Professional', '#Business']
-
         industry_tags = {
             'Technology': ['#Tech', '#Innovation', '#Digital'],
             'Marketing': ['#Marketing', '#Growth', '#Strategy'],
             'Finance': ['#Finance', '#Investment', '#Money'],
             'Healthcare': ['#Healthcare', '#Wellness', '#Medical'],
             'Education': ['#Education', '#Learning', '#Training'],
-            'Consulting': ['#Consulting', '#Advisory', '#Expertise']
+            'Consulting': ['#Consulting', '#Advisory', '#Expertise'],
         }
-
-        specific_tags = industry_tags.get(industry, ['#Industry', '#Leadership'])
-        return base_tags + specific_tags
+        specific = industry_tags.get(industry, ['#Industry', '#Leadership'])
+        if platform == 'linkedin':
+            return ['#LinkedIn', '#Professional', '#Business'] + specific
+        elif platform == 'twitter':
+            return specific[:2]
+        elif platform == 'instagram':
+            return ['#instagood', '#business'] + specific + ['#lifestyle', '#motivation']
+        else:  # facebook
+            return ['#Business'] + specific
 
     def _save_calendar(self, calendar: Dict, start_date: datetime) -> Path:
-        """Save calendar to file"""
+        """Save calendar and individual post files to Content_Calendar"""
         calendar_dir = self.vault_path / 'Content_Calendar'
         calendar_dir.mkdir(exist_ok=True)
 
-        # Save weekly calendar as JSON
+        # 1. Save individual post files for watchers
+        for post in calendar['posts']:
+            platform = post['platform']
+            dt = datetime.fromisoformat(post['scheduled_for'])
+            filename = f"{platform.upper()}_POST_{dt.strftime('%Y%m%d_%H%M%S')}.json"
+            
+            # Map simplified post data for specific skills
+            post_file_data = {
+                'type': f"{platform}_post",
+                'content': post['content'],
+                'scheduled_for': post['scheduled_for'],
+                'created_at': post['created_at'],
+                'status': 'scheduled',
+                'hashtags': post['hashtags']
+            }
+
+            if platform in ('facebook', 'instagram', 'linkedin') and post.get('image_prompt'):
+                post_file_data['image_prompt'] = post['image_prompt']
+            
+            (calendar_dir / filename).write_text(json.dumps(post_file_data, indent=2), encoding='utf-8')
+
+        # 2. Save weekly calendar as JSON
         week_str = start_date.strftime('%Y-W%U')
         calendar_file = calendar_dir / f"CALENDAR_{week_str}.json"
         calendar_file.write_text(json.dumps(calendar, indent=2), encoding='utf-8')
 
-        # Also save as markdown for easy viewing
+        # 3. Also save as markdown for easy viewing
         md_file = calendar_dir / f"CALENDAR_{week_str}.md"
         md_content = self._calendar_to_markdown(calendar)
         md_file.write_text(md_content, encoding='utf-8')
 
-        self.logger.info(f"Saved content calendar to {calendar_file}")
+        self.logger.info(f"Saved content calendar and {len(calendar['posts'])} post files to {calendar_dir}")
 
         return calendar_file
 

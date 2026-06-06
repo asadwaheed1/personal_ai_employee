@@ -159,9 +159,10 @@ class Orchestrator:
                 key=lambda x: x.stat().st_mtime
             )
 
-            # Check for MCP action files (JSON files with MCP_ prefix)
+            # Check for MCP action files (JSON files with MCP_ prefix or QUEUED_MCP_GMAIL_)
             files['needs_action_mcp'] = sorted(
-                [f for f in self.needs_action.glob('MCP_*.json') if not f.name.startswith('.')],
+                [f for f in self.needs_action.glob('MCP_*.json') if not f.name.startswith('.')] +
+                [f for f in self.needs_action.glob('QUEUED_MCP_GMAIL_*.json') if not f.name.startswith('.')],
                 key=lambda x: x.stat().st_mtime
             )
 
@@ -423,32 +424,39 @@ All files have been processed and moved to appropriate folders.
                 summary=f"Executing {len(files)} approved action(s)"
             )
 
+        _SCHEDULED_POST_TYPES = {
+            'twitter_scheduled_post', 'facebook_scheduled_post',
+            'instagram_scheduled_post', 'linkedin_scheduled_post',
+        }
+
         success_count = 0
         for file_path in files:
             try:
-                # Check if it's an email file
                 content = file_path.read_text()
                 if 'type: email' in content and 'message_id:' in content:
-                    # Execute email actions directly via skill
                     self.logger.info(f'Processing approved email: {file_path.name}')
                     result = self._execute_email_actions(file_path)
+                    if result:
+                        success_count += 1
+                elif any(f'type: {t}' in content for t in _SCHEDULED_POST_TYPES):
+                    self.logger.info(f'Processing approved scheduled post: {file_path.name}')
+                    result = self._execute_approved_via_skill(file_path)
                     if result:
                         success_count += 1
                 else:
                     # For non-email files, use generic Claude processing
                     self.logger.info(f'Processing approved file (non-email): {file_path.name}')
-                    context = f'Execute approved action from {file_path.name}'
+                    context = f'Execute approved action from {file_path.name}. IMPORTANT: If a skill returns "status: retry", do NOT move the file to Done, leave it in Approved/ for retry.'
                     if self._trigger_claude_processing(context):
-                        success_count += 1
+                        if not file_path.exists():
+                            success_count += 1
+                        else:
+                            self.logger.info(f'File {file_path.name} still exists in Approved/, likely queued for retry')
 
             except Exception as e:
                 self.logger.error(f'Failed to process approved file {file_path.name}: {e}', exc_info=True)
 
-        self.logger.info(f'Approved actions: {success_count}/{len(files)} successful')
-        self._log_dashboard_event(
-            activity_log=f"Approved execution complete: {success_count}/{len(files)} succeeded",
-            summary=f"Approved actions executed: {success_count} success, {len(files) - success_count} failed"
-        )
+        self.logger.info(f'Approved actions complete')
         return success_count > 0
 
     def _execute_email_actions(self, email_file: Path) -> bool:
@@ -485,6 +493,35 @@ All files have been processed and moved to appropriate folders.
             self.logger.error(f'Error executing email actions: {e}', exc_info=True)
             return False
 
+    def _execute_approved_via_skill(self, approved_file: Path) -> bool:
+        """Call ProcessApprovedActionsSkill directly for a single approved file."""
+        import sys
+        skill_path = Path(__file__).parent / 'skills' / 'process_approved_actions.py'
+        params = {
+            'vault_path': str(self.vault_path),
+            'files': [str(approved_file)],
+        }
+        try:
+            result = subprocess.run(
+                [sys.executable, str(skill_path), json.dumps(params)],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=str(self.vault_path.parent)
+            )
+            if result.returncode == 0:
+                self.logger.info(f'Approved action executed via skill: {approved_file.name}')
+                return True
+            else:
+                self.logger.error(f'ProcessApprovedActionsSkill failed for {approved_file.name}: {result.stderr[:300]}')
+                return False
+        except subprocess.TimeoutExpired:
+            self.logger.error(f'ProcessApprovedActionsSkill timed out for {approved_file.name}')
+            return False
+        except Exception as e:
+            self.logger.error(f'Error executing approved action {approved_file.name}: {e}', exc_info=True)
+            return False
+
     def _process_inbox(self, files: List[Path]) -> bool:
         """Process files in Inbox folder"""
         if not files:
@@ -505,9 +542,14 @@ All files have been processed and moved to appropriate folders.
         # Try to acquire processing lock
         if not self._acquire_processing_lock():
             self.logger.debug('Another processing instance is running, skipping...')
+            # Gold Tier: Handle locked vault by logging detection to overflow
+            self._handle_vault_locked()
             return False
 
         try:
+            # Sync from overflow if any
+            self._sync_from_overflow()
+
             files = self._get_files_to_process()
 
             total_files = sum(len(f) for f in files.values())
@@ -542,6 +584,60 @@ All files have been processed and moved to appropriate folders.
 
         finally:
             self._release_processing_lock()
+
+    def _handle_vault_locked(self):
+        """Handle cases where the vault is locked by another process"""
+        try:
+            # Check if there are important new items that should have been processed
+            files = self._get_files_to_process()
+            total_pending = sum(len(f) for f in files.values())
+            
+            if total_pending > 0:
+                overflow_dir = Path('/tmp/vault_overflow')
+                overflow_dir.mkdir(parents=True, exist_ok=True)
+                
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                overflow_file = overflow_dir / f"overflow_{timestamp}.json"
+                
+                overflow_data = {
+                    'timestamp': datetime.now().isoformat(),
+                    'reason': 'vault_locked',
+                    'pending_files': {k: [str(p.name) for p in v] for k, v in files.items() if v}
+                }
+                
+                with open(overflow_file, 'w') as f:
+                    json.dump(overflow_data, f, indent=2)
+                
+                self.logger.warning(f"Vault locked with {total_pending} items pending. Logged to overflow: {overflow_file.name}")
+        except Exception as e:
+            self.logger.error(f"Error handling vault overflow: {e}")
+
+    def _sync_from_overflow(self):
+        """Sync data from overflow directory back to vault logs"""
+        try:
+            overflow_dir = Path('/tmp/vault_overflow')
+            if not overflow_dir.exists():
+                return
+                
+            overflow_files = list(overflow_dir.glob('overflow_*.json'))
+            if not overflow_files:
+                return
+                
+            self.logger.info(f"Syncing {len(overflow_files)} items from overflow to vault logs")
+            
+            log_dir = self.vault_path / 'Logs' / 'Overflow'
+            log_dir.mkdir(parents=True, exist_ok=True)
+            
+            for f in overflow_files:
+                try:
+                    # Move to vault logs
+                    target = log_dir / f.name
+                    import shutil
+                    shutil.move(str(f), str(target))
+                except Exception as e:
+                    self.logger.error(f"Failed to sync overflow file {f.name}: {e}")
+        except Exception as e:
+            self.logger.error(f"Error syncing from overflow: {e}")
 
     def run_monitoring_loop(self):
         """Main monitoring loop"""

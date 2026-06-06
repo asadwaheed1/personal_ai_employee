@@ -487,18 +487,131 @@ After running tests, document results:
 ## Cleanup After Testing
 
 ```bash
-# Stop system
 ./stop.sh
-
-# Clean test files
 rm -rf ai_employee_vault/Inbox/*
 rm -rf ai_employee_vault/Needs_Action/*
 rm -rf ai_employee_vault/Done/*
 rm -rf ai_employee_vault/Logs/*
-
-# Reset state
 rm -rf ai_employee_vault/.state/*.json
-
-# Restart fresh
 ./start.sh
 ```
+
+---
+
+## Gold Tier Tests
+
+### Test 13: Social Media Posting — HITL Flow
+
+```bash
+# LinkedIn
+python -m src.orchestrator.skills.post_linkedin '{"action": "create_post", "content": "Gold test #automation"}'
+ls ai_employee_vault/Pending_Approval/LINKEDIN_POST_*.md
+
+# Facebook
+python -m src.orchestrator.skills.post_facebook '{"action": "create_post", "content": "Gold FB test"}'
+ls ai_employee_vault/Pending_Approval/FACEBOOK_POST_*.md
+
+# Approve both
+mv ai_employee_vault/Pending_Approval/LINKEDIN_POST_*.md ai_employee_vault/Approved/
+mv ai_employee_vault/Pending_Approval/FACEBOOK_POST_*.md ai_employee_vault/Approved/
+```
+
+**Success Criteria**: Approval files created → execution logged → post_id in Done/ result.
+
+### Test 14: Cross-Platform Content Calendar
+
+```bash
+python src/orchestrator/skills/create_content_plan.py
+ls ai_employee_vault/Content_Calendar/
+# Expected: JSON plan + per-platform MD files (LI/TW/FB/IG)
+```
+
+**Success Criteria**: Calendar files generated for all 4 platforms.
+
+### Test 15: Odoo Accounting Integration
+
+```bash
+python -c "
+import sys; sys.path.insert(0, '.')
+from src.orchestrator.skills.odoo_accounting import OdooAccountingSkill
+skill = OdooAccountingSkill('./ai_employee_vault')
+print(skill.get_revenue_summary('2026-04-01', '2026-04-30'))
+print(skill.get_expense_summary('2026-04-01', '2026-04-30'))
+"
+```
+
+**Success Criteria**: Returns dict with total amounts + invoice count (requires Odoo Docker running).
+
+### Test 16: CEO Weekly Briefing
+
+```bash
+python src/orchestrator/skills/generate_ceo_briefing.py ./ai_employee_vault
+ls ai_employee_vault/Briefings/
+# Open latest briefing and verify sections present
+```
+
+**Success Criteria**: Briefing contains Executive Summary, Email Activity, Odoo Financials, Anomalies.
+
+### Test 17: Audit Logging
+
+```bash
+# Run any social post test, then:
+cat ai_employee_vault/Logs/audit_master.json | python -m json.tool | tail -40
+```
+
+**Success Criteria**: Structured JSON entries with `platform`, `action`, `status`, `timestamp` fields.
+
+### Test 18: Health Check
+
+```bash
+python scripts/health_check.py
+cat ai_employee_vault/Dashboard.md | grep -A5 "Health"
+```
+
+**Success Criteria**: Health check runs, Dashboard health table updated.
+
+### Test 19: Ralph Wiggum Autonomous Mode
+
+```bash
+./scripts/start_ralph_wiggum.sh
+
+# Drop test file to Needs_Action
+cat > ai_employee_vault/Needs_Action/TEST_$(date +%s).md << 'EOF'
+---
+type: task
+priority: low
+---
+# Test autonomous processing
+EOF
+# Expected: stop hook detects pending item → injects continuation prompt
+```
+
+**Success Criteria**: Claude continues processing without manual restart.
+
+### Test 20: Multiple MCP Servers
+
+```bash
+cat .mcp.json
+# Expected: gmail, filesystem, and odoo servers listed
+
+# Test filesystem MCP action
+cat > ai_employee_vault/Needs_Action/MCP_FILESYSTEM_test_$(date +%s).json << 'EOF'
+{
+  "mcp_server": "filesystem",
+  "tool": "list_directory",
+  "timestamp": "2026-04-25T00:00:00Z",
+  "status": "pending",
+  "params": {"path": "./ai_employee_vault/Done"},
+  "result": null
+}
+EOF
+
+python src/orchestrator/mcp_processor.py ./ai_employee_vault
+ls ai_employee_vault/Done/EXECUTED_MCP_FILESYSTEM_*.json
+```
+
+**Success Criteria**: Filesystem MCP action executes and returns directory listing.
+
+---
+
+**Last Updated**: 2026-04-25 | Bronze ✅ Silver ✅ Gold ✅

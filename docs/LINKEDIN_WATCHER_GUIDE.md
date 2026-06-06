@@ -2,11 +2,13 @@
 
 ## Overview
 
-The LinkedIn integration now uses the **official LinkedIn API** for authentication and posting.
+LinkedIn uses the **official LinkedIn API** (OAuth 2.0) for authentication and posting.
 
-Current watcher behavior:
-- Checks content calendar entries
-- Creates approval requests for due posts
+In Gold Tier, the LinkedIn-only watcher is replaced by `content_calendar_watcher.py` — a unified watcher that handles all platforms (LinkedIn, Twitter, Facebook, Instagram) from a single content calendar.
+
+Current behavior:
+- `content_calendar_watcher.py` checks `Content_Calendar/` for due posts across all platforms
+- Creates approval requests per platform in `Pending_Approval/`
 - Works with the HITL flow (`Pending_Approval` → `Approved` → publish)
 
 > LinkedIn message monitoring is not supported with standard app access (requires LinkedIn Partner Program).
@@ -114,5 +116,5 @@ ls -la credentials/linkedin_api_token.json
 
 ---
 
-**Last Updated:** 2026-04-11
-**Status:** API-first workflow active
+**Last Updated:** 2026-04-25
+**Status:** API-first workflow active — unified cross-platform calendar watcher

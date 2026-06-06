@@ -238,6 +238,9 @@ This email has been flagged as requiring approval based on:
 
         action_path.write_text(json.dumps(mcp_action, indent=2), encoding='utf-8')
         self.logger.info(f"Created MCP email action: {action_path.name}")
+        
+        # Gold Tier: Structured Audit Logging
+        self._log_audit('email_mcp_queued', to, 'success', platform='gmail', details={'subject': subject})
 
         return {
             "mcp_action_created": True,

@@ -2,7 +2,9 @@
 
 ## Overview
 
-This document describes the Claude Code Agent Skills implementation for the Bronze Tier Personal AI Employee. All AI functionality is now implemented as Agent Skills, meeting the Bronze Tier requirement from `requirements.md`.
+This document describes all Agent Skills across Bronze, Silver, and Gold Tiers. All AI functionality is implemented as Agent Skills. Gold Tier adds social media platforms, Odoo ERP, CEO briefings, and audit logging.
+
+**Version:** 3.0-gold | **Last Updated:** 2026-04-25
 
 ## Architecture
 
@@ -14,7 +16,27 @@ This document describes the Claude Code Agent Skills implementation for the Bron
 
 src/orchestrator/skills/
 ├── __init__.py
-├── base_skill.py (Base class for all skills)
+├── base_skill.py                   # Base class + _log_audit helper
+│
+│   # Gold Tier
+├── audit_logger.py                 # Structured JSON audit logging
+├── generate_ceo_briefing.py        # CEO Weekly Briefing + Odoo financials
+├── odoo_accounting.py              # Odoo ERP XML-RPC client
+├── post_twitter.py                 # Twitter/X HITL posting
+├── twitter_api_client.py           # Tweepy wrapper
+├── post_facebook.py                # Facebook Page HITL posting
+├── post_instagram.py               # Instagram Business HITL posting
+├── meta_api_client.py              # Meta Graph API v21.0 client
+│
+│   # Silver Tier
+├── send_email.py                   # Email sending via Gmail MCP
+├── process_email_actions.py        # Email → MCP action routing
+├── post_linkedin.py                # LinkedIn HITL posting
+├── linkedin_api_client.py          # LinkedIn OAuth + posting client
+├── create_content_plan.py          # Cross-platform content calendar
+├── gmail_retry_handler.py          # Retry decorator for Gmail errors
+│
+│   # Bronze Tier
 ├── process_needs_action.py
 ├── update_dashboard.py
 ├── create_plan.py
@@ -509,25 +531,58 @@ All skills include:
 - Detailed logging
 - Graceful failure modes
 
-## Next Steps (Silver Tier)
+## Gold Tier Skills
 
-To advance to Silver Tier, add:
+### audit_logger
+**Purpose**: Write structured JSON audit entries for all external actions.
 
-1. **Email MCP Server**: Integrate with Gmail API for actual email operations
-2. **WhatsApp Watcher**: Add WhatsApp monitoring via Playwright
-3. **Enhanced Skills**: Create skills that use MCP servers for external actions
-4. **Ralph Wiggum Loop**: Implement persistent task completion loop
+All social posting skills and email skills call `self._log_audit(...)` via `base_skill.py`.
+
+Output: `Logs/audit_YYYY-MM-DD.json` + `Logs/audit_master.json` (last 1000 actions).
+
+### generate_ceo_briefing
+**Purpose**: Generate Monday morning CEO briefing with live data from vault + Odoo.
+
+Sections: Executive Summary, Email Activity, Social Activity (LI/TW/FB/IG), Odoo Financials, Completed Tasks, Pending Items, Anomalies, Next Week Prep.
+
+Output: `Briefings/YYYY-MM-DD_Monday_Briefing.md`
+
+Gracefully degrades when Odoo unavailable ("Odoo not configured").
+
+### odoo_accounting
+**Purpose**: Odoo Community ERP integration via XML-RPC.
+
+Methods:
+- `get_revenue_summary(date_from, date_to)` — posted customer invoices
+- `get_expense_summary(date_from, date_to)` — posted vendor bills
+- `create_draft_invoice(partner_id, lines)` — creates DRAFT only + HITL approval file
+
+### post_twitter / twitter_api_client
+**Purpose**: HITL-gated Twitter/X posting via Tweepy.
+- API v2 for tweets and mentions
+- API v1.1 for media uploads
+- Approval request → `Pending_Approval/TWITTER_POST_*.md`
+
+### post_facebook / meta_api_client
+**Purpose**: Facebook Page posting via Meta Graph API v21.0.
+- Supports immediate and calendar-scheduled posts
+- `meta_api_client.py` handles long-lived tokens + page/IG discovery
+- Approval request → `Pending_Approval/FACEBOOK_POST_*.md`
+
+### post_instagram / meta_api_client
+**Purpose**: Instagram Business posting via Meta Graph API v21.0.
+- Requires public image URL (Instagram API limitation)
+- Approval request → `Pending_Approval/INSTAGRAM_POST_*.md`
+
+---
 
 ## Summary
 
-The Bronze Tier Agent Skills implementation provides:
+Gold Tier Agent Skills: **15 skills** total across all tiers.
 
-- ✅ 7 fully functional agent skills
-- ✅ Proper skill manifest and documentation
-- ✅ Base class for consistency
-- ✅ Comprehensive error handling
-- ✅ Detailed logging
-- ✅ Compliance with all Bronze Tier requirements
-- ✅ Foundation for Silver/Gold tier expansion
-
-All AI functionality is now implemented as Agent Skills, meeting the requirement from `requirements.md`.
+- ✅ 7 Bronze Tier skills (file processing, dashboard, plans, approval, inbox)
+- ✅ 6 Silver Tier skills (email, LinkedIn, content calendar, retry)
+- ✅ 8 Gold Tier skills (Twitter, Meta, Odoo, CEO Briefing, Audit Logger)
+- ✅ All skills log via structured audit trail
+- ✅ All external-action skills implement HITL approval flow
+- ✅ BaseSkill provides `_log_audit` helper to all skills

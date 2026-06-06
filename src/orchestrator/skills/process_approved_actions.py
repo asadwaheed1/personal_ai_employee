@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 try:
     from .base_skill import BaseSkill, run_skill
@@ -63,16 +63,34 @@ class ProcessApprovedActionsSkill(BaseSkill):
                     "result": result
                 })
 
-                # mcp_queued: process_email_actions.py already archived the file to Done
-                # For all other cases archive here
-                if result.get('status') != 'mcp_queued':
-                    self._archive_approval_file(file_path, approval_data, result)
-                elif file_path.exists():
-                    # Fallback: file wasn't moved by skill (edge case), archive it
-                    self._archive_approval_file(file_path, approval_data, result)
+                # Determine if the skill actually succeeded
+                is_failed = (
+                    result.get('status') == 'failed'
+                    or result.get('success') is False
+                    or ('error' in result and result.get('status') not in ('completed', 'mcp_queued', 'logged'))
+                )
 
-                processed_count += 1
-                self.logger.info(f"Successfully executed approved action: {file_path.name}")
+                if is_failed:
+                    error_msg = result.get('error', 'skill returned failed status')
+                    self.logger.error(f"Skill returned failure for {file_path.name}: {error_msg}")
+                    execution_results[-1]['error'] = error_msg
+                    # Move to Pending_Approval so user can fix and re-approve
+                    pending_dir = self.vault_path / 'Pending_Approval'
+                    pending_dir.mkdir(exist_ok=True)
+                    failed_note = f"\n\n---\n## Action Required\n**Failed at**: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n**Error**: {error_msg}\n\nFix the issue above, then move this file to **/Approved/** to retry.\n"
+                    file_path.write_text(content + failed_note)
+                    dest = pending_dir / file_path.name
+                    file_path.rename(dest)
+                    self.logger.info(f"Moved failed action to Pending_Approval: {file_path.name}")
+                else:
+                    # mcp_queued: process_email_actions.py already archived the file to Done
+                    # For all other cases archive here
+                    if result.get('status') != 'mcp_queued':
+                        self._archive_approval_file(file_path, approval_data, result)
+                    elif file_path.exists():
+                        self._archive_approval_file(file_path, approval_data, result)
+                    processed_count += 1
+                    self.logger.info(f"Successfully executed approved action: {file_path.name}")
 
             except Exception as e:
                 self.logger.error(f"Failed to execute approved action {file_path}: {e}")
@@ -124,7 +142,28 @@ class ProcessApprovedActionsSkill(BaseSkill):
         if file_type == 'email':
             return self._execute_approved_email_via_mcp(approval_data, content)
 
+        # Scheduled post files carry type: *_scheduled_post in frontmatter but no action: field
+        _PLATFORM_FROM_TYPE = {
+            'twitter_scheduled_post': 'twitter',
+            'facebook_scheduled_post': 'facebook',
+            'instagram_scheduled_post': 'instagram',
+            'linkedin_scheduled_post': 'linkedin',
+        }
+        if file_type in _PLATFORM_FROM_TYPE:
+            return self._execute_social_post(_PLATFORM_FROM_TYPE[file_type], approval_data, content)
+
         action_type = approval_data.get('action', '').lower()
+
+        # Social Media Posting Actions — parse content from approval MD, call skill directly
+        if 'twitter_post' in action_type:
+            return self._execute_social_post('twitter', approval_data, content)
+        elif 'facebook_post' in action_type:
+            return self._execute_social_post('facebook', approval_data, content)
+        elif 'instagram_post' in action_type:
+            return self._execute_social_post('instagram', approval_data, content)
+        elif 'linkedin_post' in action_type or 'linkedin_scheduled_post' in action_type:
+            return self._execute_social_post('linkedin', approval_data, content)
+
         if 'payment' in action_type:
             return self._execute_payment_action(approval_data, content)
         elif 'email' in action_type or action_type == 'send_email':
@@ -135,6 +174,111 @@ class ProcessApprovedActionsSkill(BaseSkill):
             return self._execute_system_action(approval_data, content)
         else:
             return self._execute_generic_action(approval_data, content)
+
+    def _execute_social_post(self, platform: str, approval_data: Dict[str, Any], content: str) -> Dict[str, Any]:
+        """Parse approval MD and call the appropriate social posting skill directly."""
+        try:
+            if platform == 'facebook':
+                post_content = self._parse_md_code_block(content, '## Post Content')
+                if not post_content:
+                    post_content = self._parse_md_code_block(content, '## Content')
+                link = self._parse_md_bold_field(content, 'Link')
+                image_url = self._parse_md_bold_field(content, 'Image URL')
+                from .post_facebook import PostFacebookSkill
+                skill = PostFacebookSkill(str(self.vault_path))
+                return skill.execute({'content': post_content, 'link': link, 'image_url': image_url, 'require_approval': False})
+
+            elif platform == 'instagram':
+                caption = self._parse_md_code_block(content, '## Caption')
+                if not caption:
+                    caption = self._parse_md_code_block(content, '## Content')
+                image_url = self._parse_md_bold_field(content, 'Image URL')
+                from .post_instagram import PostInstagramSkill
+                skill = PostInstagramSkill(str(self.vault_path))
+                return skill.execute({'content': caption, 'image_url': image_url, 'require_approval': False})
+
+            elif platform == 'linkedin':
+                post_content = self._parse_md_code_block(content, '## Post Content')
+                if not post_content:
+                    post_content = self._parse_md_code_block(content, '## Content')
+                image_url = self._parse_md_bold_field(content, 'Image URL')
+                from .post_linkedin import PostLinkedInSkill
+                skill = PostLinkedInSkill(str(self.vault_path))
+                return skill.execute({'content': post_content, 'image_url': image_url, 'require_approval': False})
+
+            elif platform == 'twitter':
+                tweet = self._parse_md_code_block(content, '## Tweet')
+                if not tweet:
+                    tweet = self._parse_md_code_block(content, '## Post Content')
+                if not tweet:
+                    tweet = self._parse_md_code_block(content, '## Content')
+                from .post_twitter import PostTwitterSkill
+                skill = PostTwitterSkill(str(self.vault_path))
+                return skill.execute({'content': tweet, 'require_approval': False})
+
+            return {'status': 'failed', 'error': f'Unknown platform: {platform}'}
+
+        except Exception as e:
+            self.logger.error(f"Social post execution failed for {platform}: {e}", exc_info=True)
+            return {'status': 'failed', 'error': str(e)}
+
+    def _parse_md_code_block(self, content: str, header: str) -> str:
+        """Extract text inside first code block after a markdown header."""
+        import re
+        pattern = rf'{re.escape(header)}\s*\n```[^\n]*\n(.*?)```'
+        match = re.search(pattern, content, re.DOTALL)
+        return match.group(1).strip() if match else ''
+
+    def _parse_md_bold_field(self, content: str, field_name: str) -> Optional[str]:
+        """Extract value from pattern '## Field\n**value**'. Returns None if value is None/empty."""
+        import re
+        pattern = rf'## {re.escape(field_name)}\s*\n\*\*(.+?)\*\*'
+        match = re.search(pattern, content)
+        if match:
+            val = match.group(1).strip()
+            if val.lower() not in ('none', ''):
+                return val
+        return None
+
+    def _execute_skill(self, skill_name: str, approval_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute a specific skill with approved parameters"""
+        skill_path = Path(__file__).parent / skill_name
+        if not skill_path.exists():
+            return {'status': 'failed', 'error': f'Skill not found: {skill_name}'}
+
+        # Try to load the companion JSON data file
+        # Reconstruct path from id
+        approved_dir = self.vault_path / 'Approved'
+        data_path = approved_dir / f"{approval_data['id']}.json"
+        
+        if data_path.exists():
+            try:
+                params = json.loads(data_path.read_text())
+                params['action'] = 'execute_approved'
+            except:
+                params = {'action': 'execute_approved'}
+        else:
+            params = {'action': 'execute_approved'}
+
+        try:
+            result = subprocess.run(
+                [sys.executable, str(skill_path), json.dumps(params)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                cwd=str(self.vault_path.parent)
+            )
+
+            if result.returncode == 0:
+                try:
+                    payload = json.loads(result.stdout)
+                    return payload.get('result', payload)
+                except:
+                    return {'status': 'completed', 'message': 'Skill executed successfully'}
+            else:
+                return {'status': 'failed', 'error': result.stderr[:300]}
+        except Exception as e:
+            return {'status': 'failed', 'error': str(e)}
 
     def _execute_approved_email_via_mcp(self, email_data: Dict[str, Any], content: str) -> Dict[str, Any]:
         """

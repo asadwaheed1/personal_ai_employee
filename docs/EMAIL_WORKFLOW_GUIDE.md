@@ -294,4 +294,10 @@ python -m src.orchestrator.skills.process_email_actions \
 
 ---
 
-**Last Updated**: 2026-04-01
+## Audit Logging
+
+All email actions (mark_as_read, archive, reply, delete) produce structured audit entries in `Logs/audit_master.json` via the Gold Tier audit logger.
+
+---
+
+**Last Updated**: 2026-04-25
